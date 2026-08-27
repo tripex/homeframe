@@ -3,7 +3,7 @@ import { Bot, WashingMachine } from "lucide-vue-next";
 import GlassCard from "./GlassCard.vue";
 
 const props = defineProps<{
-  kind: "washer" | "vacuum";
+  kind: "washer" | "dryer" | "vacuum";
   title: string;
   state: string;
   detail?: string;
@@ -12,6 +12,7 @@ const props = defineProps<{
 
 const icons = {
   washer: WashingMachine,
+  dryer: WashingMachine,
   vacuum: Bot,
 };
 </script>

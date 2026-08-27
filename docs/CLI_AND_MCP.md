@@ -1,95 +1,263 @@
 # CLI and MCP
 
-Homeframe exposes the same framework operations in two ways:
+Homeframe exposes the same dashboard engine through two primary interfaces:
 
-- **CLI** for humans, shell scripts and coding agents
-- **MCP** for agents that support Model Context Protocol
+- **CLI** for humans, shell scripts and automation
+- **MCP** for Hermes and other Model Context Protocol agents
 
-Both use `@homeframe/tooling` underneath. This is intentional: there should be one implementation of Homeframe operations and multiple interfaces to it.
+Both call `@homeframe/tooling`. The business logic does not live in the CLI or MCP server, so both interfaces operate on the same manifests, validation rules and persistent installation store.
+
+## Installation data
+
+By default Homeframe stores dashboards in:
+
+```text
+~/.homeframe/dashboards/
+```
+
+For server or container use, set a persistent directory:
+
+```bash
+export HOMEFRAME_DATA_DIR=/var/lib/homeframe
+```
+
+When running from a cloned source tree, also tell tooling where framework schemas and the card catalog live:
+
+```bash
+export HOMEFRAME_ROOT=/path/to/homeframe
+```
+
+## Build
+
+```bash
+npm install
+npm run check
+```
 
 ## CLI
 
-After building the repository:
+Run the development CLI with:
 
 ```bash
-npm run build
+node packages/cli/dist/cli.js --help
 ```
 
-Examples:
+### Inspect the framework
 
 ```bash
 node packages/cli/dist/cli.js cards list
 node packages/cli/dist/cli.js cards show room
-node packages/cli/dist/cli.js dashboard validate examples/demo-dashboard.json
-node packages/cli/dist/cli.js doctor
 node packages/cli/dist/cli.js agent-info
+node packages/cli/dist/cli.js installation-info
+node packages/cli/dist/cli.js doctor
 ```
 
-The eventual published package will expose the shorter `homeframe` executable.
+### Work with dashboards
+
+```bash
+node packages/cli/dist/cli.js dashboard list
+node packages/cli/dist/cli.js dashboard show my-home-mobile
+node packages/cli/dist/cli.js dashboard validate dashboard.json
+node packages/cli/dist/cli.js dashboard save dashboard.json
+node packages/cli/dist/cli.js dashboard create wall-tablet "Wall tablet" tablet-10
+node packages/cli/dist/cli.js dashboard delete wall-tablet
+node packages/cli/dist/cli.js dashboard reflow wall-tablet
+```
+
+### Plan several screens at once
+
+```bash
+node packages/cli/dist/cli.js dashboard plan \
+  examples/home-snapshot.json \
+  tablet-10,nest-hub,mobile
+```
+
+Add `--save` to persist the plan:
+
+```bash
+node packages/cli/dist/cli.js dashboard plan \
+  examples/home-snapshot.json \
+  tablet-10,nest-hub,mobile \
+  --save
+```
+
+### Add cards and bindings
+
+```bash
+node packages/cli/dist/cli.js card add \
+  my-home-mobile room room-kitchen kitchen
+
+node packages/cli/dist/cli.js binding set \
+  my-home-mobile room-kitchen temperature sensor.kitchen_temperature
+
+node packages/cli/dist/cli.js layout set \
+  my-home-mobile room-kitchen 0 0 4 3
+```
 
 ## MCP
 
-The MCP package exposes Homeframe over stdio:
+Start the stdio server:
 
 ```bash
-npm run build
-node packages/mcp/dist/server.js
+export HOMEFRAME_ROOT=/path/to/homeframe
+export HOMEFRAME_DATA_DIR=/var/lib/homeframe
+node /path/to/homeframe/packages/mcp/dist/server.js
 ```
 
-Current tools:
+Configure that process as an MCP server in the agent that should manage the installation.
 
-### `project_info`
+## MCP tools
 
-Explains the framework architecture and where an agent should start.
+### Framework and installation discovery
 
-### `list_cards`
+`project_info`
+: Explains Homeframe's public model, device profiles and preferred mutation strategy.
 
-Returns the reusable card catalog including capability requirements and action risk levels.
+`installation_info`
+: Shows where the current installation stores dashboards.
 
-### `get_card`
+`list_cards`
+: Returns reusable card contracts with semantic capability requirements and action-risk levels.
 
-Returns one complete card manifest.
+`get_card`
+: Returns one reusable card contract.
 
-### `validate_dashboard`
+`validate_dashboard`
+: Validates a candidate DashboardManifest without saving it.
 
-Validates a candidate dashboard manifest before the agent saves or proposes it.
+### Dashboard reads
+
+`list_dashboards`
+: Lists saved dashboards.
+
+`get_dashboard`
+: Reads one saved dashboard by ID.
+
+### Planning
+
+`plan_dashboards`
+: Accepts a neutral semantic HomeSnapshot plus one or more device profiles and returns deterministic proposed manifests without writing anything.
+
+`create_planned_dashboards`
+: Runs the same planner and persists the resulting device-specific manifests.
+
+Use `plan_dashboards` first when an agent is creating a new installation so the plan can be reviewed before it is saved.
+
+### Dashboard writes
+
+`create_dashboard`
+: Creates an empty dashboard for a target profile.
+
+`save_dashboard`
+: Validates and saves a complete manifest. Prefer smaller operations for routine edits.
+
+`add_card`
+: Adds a reusable card instance and reflows the grid.
+
+`remove_card`
+: Removes a card instance and reflows the grid.
+
+`set_binding`
+: Binds a semantic card capability to one or more concrete Home Assistant entity IDs.
+
+`set_card_layout`
+: Moves/resizes a card using grid coordinates.
+
+`reflow_dashboard`
+: Recalculates a clean deterministic layout.
+
+`delete_dashboard`
+: Deletes one saved manifest. It does not modify Home Assistant.
 
 ## Why Homeframe MCP is separate from Home Assistant MCP
 
-They answer different questions.
+They have deliberately different jobs:
 
 ```text
 Home Assistant MCP
-  → What exists in this home?
+  → What exists in this specific home?
 
 Homeframe MCP
-  → What can Homeframe build, and what is valid?
+  → What can Homeframe render and how do I configure it?
 ```
 
-An agent such as Hermes can use both:
+The intended agent workflow is:
 
 ```text
 User request
     ↓
 Hermes
-    ├── Home Assistant MCP → discovers real areas/entities/devices
-    └── Homeframe MCP      → discovers cards/contracts/validation
-              ↓
-       DashboardManifest
-              ↓
-          Homeframe
+    ├── Home Assistant MCP
+    │      ↓
+    │   areas / devices / entities
+    │      ↓
+    │   semantic HomeSnapshot
+    │
+    └── Homeframe MCP
+           ↓
+       plan_dashboards
+           ↓
+       create_planned_dashboards
+           ↓
+       bindings / layout refinements
+           ↓
+       saved DashboardManifests
+           ↓
+       Homeframe Runtime
 ```
 
-## Planned write tools
+Homeframe does not depend on one particular Home Assistant MCP server. The agent translates whatever HA discovery interface it has into Homeframe's small neutral HomeSnapshot shape.
 
-The first MCP tools are intentionally read/validate-only. Future write-capable tools will be added around explicit framework operations such as:
+## HomeSnapshot example
 
-- `plan_dashboard`
-- `create_dashboard`
-- `add_card`
-- `update_card_binding`
-- `remove_card`
+```json
+{
+  "name": "My Home",
+  "areas": [
+    {
+      "id": "living-room",
+      "name": "Living room",
+      "capabilities": {
+        "temperature": ["sensor.living_room_temperature"],
+        "humidity": ["sensor.living_room_humidity"],
+        "light": ["light.living_room"],
+        "climate": ["climate.living_room"]
+      }
+    }
+  ],
+  "capabilities": {
+    "power": ["sensor.home_power"],
+    "vacuum": ["vacuum.robot"]
+  }
+}
+```
 
-Those tools should modify declarative manifests rather than arbitrary source files whenever possible.
+Entity IDs are correct in this installation-level object and in DashboardManifest bindings. They remain forbidden in reusable framework components.
 
-Framework-code generation remains a coding-agent workflow and should happen only when no existing card/capability can satisfy the request.
+## Safety boundary
+
+The Homeframe MCP server currently changes **dashboard configuration**, not Home Assistant device state.
+
+Card contracts label possible actions as:
+
+- `read`
+- `control`
+- `security`
+
+Future runtime execution of lock/alarm/garage actions must preserve explicit security approval. Creating or editing a security-status card is not the same as executing a security action.
+
+## Runtime
+
+After dashboards have been created:
+
+```bash
+npm start
+```
+
+A screen may load an exact dashboard:
+
+```text
+http://homeframe-host:4173/?dashboard=my-home-tablet-10
+```
+
+Or load `/` and allow the frontend to infer a device profile and select the first matching saved dashboard.

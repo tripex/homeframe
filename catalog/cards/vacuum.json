@@ -1,0 +1,30 @@
+{
+  "id": "vacuum",
+  "version": "0.2.0",
+  "displayName": "Robot vacuum",
+  "description": "Status and safe controls for a Home Assistant vacuum entity.",
+  "aiSummary": "Use when a vacuum capability exists. Prefer this over a generic appliance card.",
+  "sizes": ["sm", "md"],
+  "capabilities": [
+    { "kind": "vacuum", "required": true }
+  ],
+  "props": {
+    "title": {
+      "type": "string",
+      "description": "Human-facing vacuum name",
+      "default": "Robot vacuum"
+    }
+  },
+  "actions": [
+    {
+      "id": "start-pause",
+      "description": "Start or pause the current cleaning task.",
+      "risk": "control"
+    },
+    {
+      "id": "return-home",
+      "description": "Send the vacuum back to its dock.",
+      "risk": "control"
+    }
+  ]
+}

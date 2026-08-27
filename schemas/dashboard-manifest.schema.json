@@ -3,24 +3,64 @@
   "$id": "https://homeframe.dev/schemas/dashboard-manifest.schema.json",
   "title": "Homeframe Dashboard Manifest",
   "type": "object",
-  "required": ["schemaVersion", "name", "cards"],
+  "additionalProperties": false,
+  "required": ["schemaVersion", "id", "name", "target", "cards"],
   "properties": {
-    "schemaVersion": { "const": "1" },
+    "schemaVersion": { "const": "2" },
+    "id": { "type": "string", "minLength": 1, "pattern": "^[a-z0-9][a-z0-9-]*$" },
     "name": { "type": "string", "minLength": 1 },
+    "theme": { "type": "string" },
     "generatedBy": { "type": "string" },
+    "createdAt": { "type": "string", "format": "date-time" },
+    "updatedAt": { "type": "string", "format": "date-time" },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["profile"],
+      "properties": {
+        "profile": { "enum": ["tablet-10", "nest-hub", "mobile", "desktop", "custom"] },
+        "width": { "type": "integer", "minimum": 240 },
+        "height": { "type": "integer", "minimum": 240 },
+        "orientation": { "enum": ["portrait", "landscape", "any"] },
+        "columns": { "type": "integer", "minimum": 1, "maximum": 24 }
+      }
+    },
     "cards": {
       "type": "array",
       "items": {
         "type": "object",
+        "additionalProperties": false,
         "required": ["instanceId", "card"],
         "properties": {
-          "instanceId": { "type": "string" },
-          "card": { "type": "string" },
+          "instanceId": { "type": "string", "minLength": 1 },
+          "card": { "type": "string", "minLength": 1 },
           "areaId": { "type": "string" },
           "size": { "enum": ["sm", "md", "lg", "wide"] },
           "bindings": {
             "type": "object",
-            "additionalProperties": { "type": "string" }
+            "additionalProperties": {
+              "oneOf": [
+                { "type": "string" },
+                { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+              ]
+            }
+          },
+          "props": {
+            "type": "object",
+            "additionalProperties": {
+              "type": ["string", "number", "boolean"]
+            }
+          },
+          "layout": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["x", "y", "w", "h"],
+            "properties": {
+              "x": { "type": "integer", "minimum": 0 },
+              "y": { "type": "integer", "minimum": 0 },
+              "w": { "type": "integer", "minimum": 1 },
+              "h": { "type": "integer", "minimum": 1 }
+            }
           }
         }
       }

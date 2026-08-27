@@ -1,22 +1,33 @@
 {
   "name": "homeframe",
-  "version": "1",
+  "version": "2",
   "entryDocs": [
     "AGENTS.md",
-    "agents/AGENTS.md",
+    "docs/HERMES.md",
     "docs/ARCHITECTURE.md",
-    "docs/AI-FIRST.md",
-    "docs/HERMES.md"
+    "docs/AI-FIRST.md"
+  ],
+  "installationSkills": [
+    "agents/skills/build-dashboard.md"
+  ],
+  "contributorDocs": [
+    "agents/AGENTS.md",
+    "agents/skills/create-card.md"
   ],
   "schemas": {
     "card": "schemas/card-manifest.schema.json",
     "dashboard": "schemas/dashboard-manifest.schema.json"
   },
   "catalog": "catalog/cards",
-  "preferredMutation": "dashboard-manifest",
+  "mcp": {
+    "transport": "stdio",
+    "command": "node",
+    "args": ["packages/mcp/dist/server.js"],
+    "recommendedEnv": ["HOMEFRAME_ROOT", "HOMEFRAME_DATA_DIR"]
+  },
+  "preferredInstallationMutation": "homeframe-mcp-operations",
+  "deviceProfiles": ["tablet-10", "nest-hub", "mobile", "desktop", "custom"],
   "verification": [
-    "npm run typecheck",
-    "npm run test",
-    "npm run build"
+    "npm run check"
   ]
 }

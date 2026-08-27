@@ -7,12 +7,6 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
-      "@homeframe/core": fileURLToPath(
-        new URL("../../packages/core/src/index.ts", import.meta.url),
-      ),
-      "@homeframe/sdk": fileURLToPath(
-        new URL("../../packages/sdk/src/index.ts", import.meta.url),
-      ),
     },
   },
   server: {

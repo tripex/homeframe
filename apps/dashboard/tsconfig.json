@@ -5,11 +5,9 @@
     "noEmit": true,
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@homeframe/core": ["../../packages/core/src/index.ts"],
-      "@homeframe/sdk": ["../../packages/sdk/src/index.ts"]
+      "@/*": ["src/*"]
     },
     "lib": ["ES2022", "DOM", "DOM.Iterable"]
   },
-  "include": ["src/**/*.ts", "src/**/*.vue", "vite.config.ts"]
+  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.vue", "vite.config.ts"]
 }

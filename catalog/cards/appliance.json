@@ -1,17 +1,18 @@
 {
   "id": "appliance",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "displayName": "Appliance",
-  "description": "Status surface for washers, dryers and similar devices.",
-  "aiSummary": "Use when appliance status/progress can be identified confidently.",
+  "description": "Status surface for washers, dryers and similar household appliances.",
+  "aiSummary": "Use when washer or dryer status/progress can be identified confidently.",
   "sizes": ["sm", "md"],
   "capabilities": [
-    { "kind": "washer" }
+    { "kind": "washer" },
+    { "kind": "dryer" }
   ],
   "props": {
     "title": {
       "type": "string",
-      "description": "Appliance name"
+      "description": "Human-facing appliance name"
     }
   },
   "actions": [
