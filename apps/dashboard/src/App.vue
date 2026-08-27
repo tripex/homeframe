@@ -13,7 +13,14 @@ import { useDashboardData } from "./composables/useDashboardData";
 import { useDashboardManifest } from "./composables/useDashboardManifest";
 import { useHomeAssistant } from "./composables/useHomeAssistant";
 
-const { status, states, semanticHome, connect, error } = useHomeAssistant();
+const {
+  status,
+  states,
+  semanticHome,
+  connectRuntime,
+  connect,
+  error,
+} = useHomeAssistant();
 const { rooms, powerWatts, energyTodayKwh, climateZones } = useDashboardData(
   status,
   states,
@@ -64,9 +71,12 @@ onMounted(async () => {
 
   await loadManifest();
 
-  const baseUrl = import.meta.env.VITE_HA_URL;
-  const token = import.meta.env.VITE_HA_TOKEN;
-  if (baseUrl && token) await connect(baseUrl, token);
+  const runtimeConnected = await connectRuntime();
+  if (!runtimeConnected) {
+    const baseUrl = import.meta.env.VITE_HA_URL;
+    const token = import.meta.env.VITE_HA_TOKEN;
+    if (baseUrl && token) await connect(baseUrl, token);
+  }
 });
 
 onUnmounted(() => {
