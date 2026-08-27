@@ -31,19 +31,58 @@ export type CardManifest = {
   }>;
 };
 
+/**
+ * Built-in device profiles are deliberately broad.
+ * A user may override width, height and columns without creating a new framework profile.
+ */
+export type DeviceProfileId =
+  | "tablet-10"
+  | "nest-hub"
+  | "mobile"
+  | "desktop"
+  | "custom";
+
+export type DashboardTarget = {
+  profile: DeviceProfileId;
+  width?: number;
+  height?: number;
+  orientation?: "portrait" | "landscape" | "any";
+  columns?: number;
+};
+
+export type CardLayout = {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+};
+
+export type EntityBinding = string | string[];
+
 export type DashboardCard = {
   instanceId: string;
   card: string;
   areaId?: string;
   size?: CardSize;
-  bindings?: Record<string, string>;
+  bindings?: Record<string, EntityBinding>;
+  props?: Record<string, string | number | boolean>;
+  layout?: CardLayout;
 };
 
+/**
+ * A DashboardManifest is installation data, not framework source code.
+ * Different screens should normally use separate manifests.
+ */
 export type DashboardManifest = {
   schemaVersion: "1";
+  id: string;
   name: string;
+  target: DashboardTarget;
+  theme?: string;
   generatedBy?: string;
   cards: DashboardCard[];
+  createdAt?: string;
+  updatedAt?: string;
 };
 
 /** Preserve a card manifest's inferred literal types while validating its shape. */
