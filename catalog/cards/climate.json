@@ -1,0 +1,25 @@
+{
+  "id": "climate",
+  "version": "0.1.0",
+  "displayName": "Climate",
+  "description": "Multi-zone climate overview.",
+  "aiSummary": "Use when one or more climate entities are available, preferably grouped by area.",
+  "sizes": ["lg", "wide"],
+  "capabilities": [
+    { "kind": "climate", "required": true, "multiple": true }
+  ],
+  "props": {
+    "title": {
+      "type": "string",
+      "description": "Card title",
+      "default": "Climate"
+    }
+  },
+  "actions": [
+    {
+      "id": "set-temperature",
+      "description": "Set target temperature for a climate entity.",
+      "risk": "control"
+    }
+  ]
+}
