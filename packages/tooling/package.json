@@ -1,6 +1,6 @@
 {
   "name": "@homeframe/tooling",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -9,6 +9,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@homeframe/sdk": "*",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1"
   },
