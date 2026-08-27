@@ -43,6 +43,31 @@ async function requireDashboard(
   return dashboard;
 }
 
+function validateCardInstanceIds(manifest: DashboardManifest): void {
+  const seen = new Set<string>();
+
+  for (const card of manifest.cards) {
+    if (seen.has(card.instanceId)) {
+      throw new Error(`Duplicate card instance id: ${card.instanceId}`);
+    }
+    seen.add(card.instanceId);
+  }
+}
+
+function validateLayouts(manifest: DashboardManifest): void {
+  const columns = manifest.target.columns ?? 12;
+
+  for (const card of manifest.cards) {
+    if (!card.layout) continue;
+
+    if (card.layout.x + card.layout.w > columns) {
+      throw new Error(
+        `Card ${card.instanceId} exceeds the ${columns}-column grid: x=${card.layout.x}, w=${card.layout.w}`,
+      );
+    }
+  }
+}
+
 export async function saveDashboard(
   manifest: DashboardManifest,
   options: EngineOptions = {},
@@ -51,6 +76,9 @@ export async function saveDashboard(
   if (!validation.valid) {
     throw new Error(`Invalid dashboard:\n${validation.errors.map((e) => `- ${e}`).join("\n")}`);
   }
+
+  validateCardInstanceIds(manifest);
+  validateLayouts(manifest);
 
   for (const card of manifest.cards) {
     if (!(await getCard(card.card, options.frameworkRoot))) {
@@ -77,7 +105,7 @@ export async function createDashboard(
 
   return saveDashboard(
     {
-      schemaVersion: "1",
+      schemaVersion: "2",
       id: input.id,
       name: input.name,
       target: targetFor(input.profile),
@@ -204,8 +232,24 @@ export async function planAndSaveDashboards(
   options: EngineOptions = {},
 ): Promise<DashboardManifest[]> {
   const planned = planDashboards(request);
-  const saved: DashboardManifest[] = [];
 
+  // Planning is a create operation. Refuse the entire batch before writing
+  // anything if one of the deterministic ids already exists. This prevents an
+  // agent from silently destroying bindings or hand-tuned layouts on a rerun.
+  const existingIds: string[] = [];
+  for (const dashboard of planned) {
+    if (await readDashboard(dashboard.id, options.dataDir)) {
+      existingIds.push(dashboard.id);
+    }
+  }
+
+  if (existingIds.length) {
+    throw new Error(
+      `Planned dashboard already exists: ${existingIds.join(", ")}. Use explicit dashboard operations to update existing dashboards.`,
+    );
+  }
+
+  const saved: DashboardManifest[] = [];
   for (const dashboard of planned) {
     saved.push(await saveDashboard(dashboard, options));
   }
