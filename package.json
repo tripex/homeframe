@@ -1,0 +1,22 @@
+{
+  "name": "homeframe",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Beautiful, adaptive and AI-first dashboards for Home Assistant.",
+  "license": "MIT",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev -w @homeframe/dashboard",
+    "build": "npm run build -w @homeframe/core && npm run build -w @homeframe/sdk && npm run build -w @homeframe/dashboard",
+    "typecheck": "npm run typecheck -ws --if-present",
+    "test": "npm run check:entity-ids",
+    "check:entity-ids": "node scripts/check-component-entity-ids.mjs",
+    "check": "npm run typecheck && npm run test && npm run build"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
