@@ -1,0 +1,26 @@
+{
+  "id": "room",
+  "version": "0.1.0",
+  "displayName": "Room",
+  "description": "Calm overview of one Home Assistant area.",
+  "aiSummary": "Use for an area when temperature, humidity, lighting or climate context exists.",
+  "sizes": ["md", "lg"],
+  "capabilities": [
+    { "kind": "temperature" },
+    { "kind": "humidity" },
+    { "kind": "light", "multiple": true }
+  ],
+  "props": {
+    "name": {
+      "type": "string",
+      "description": "Human-facing area name"
+    }
+  },
+  "actions": [
+    {
+      "id": "toggle-lights",
+      "description": "Toggle controllable lights in this area.",
+      "risk": "control"
+    }
+  ]
+}
