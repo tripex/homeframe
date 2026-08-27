@@ -1,0 +1,24 @@
+{
+  "id": "appliance",
+  "version": "0.1.0",
+  "displayName": "Appliance",
+  "description": "Status surface for washers, dryers and similar devices.",
+  "aiSummary": "Use when appliance status/progress can be identified confidently.",
+  "sizes": ["sm", "md"],
+  "capabilities": [
+    { "kind": "washer" }
+  ],
+  "props": {
+    "title": {
+      "type": "string",
+      "description": "Appliance name"
+    }
+  },
+  "actions": [
+    {
+      "id": "start-stop",
+      "description": "Start or stop an appliance only if the integration exposes an explicit safe service.",
+      "risk": "control"
+    }
+  ]
+}
