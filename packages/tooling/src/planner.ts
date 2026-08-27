@@ -241,7 +241,7 @@ export function planDashboards(request: PlanRequest): DashboardManifest[] {
     );
 
     return {
-      schemaVersion: "1",
+      schemaVersion: "2",
       id: `${slug(prefix)}-${profile}`,
       name: `${prefix} · ${profile}`,
       target,
