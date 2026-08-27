@@ -5,6 +5,7 @@ import { createServer } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { getDashboard, listDashboards } from "@homeframe/tooling";
+import { RuntimeHomeAssistant } from "./home-assistant.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, "../../..");
@@ -13,6 +14,9 @@ const staticDir = path.resolve(
 );
 const port = Number(process.env.HOMEFRAME_PORT ?? 4173);
 const host = process.env.HOMEFRAME_HOST ?? "0.0.0.0";
+
+const homeAssistant = new RuntimeHomeAssistant();
+await homeAssistant.start(process.env.HOMEFRAME_HA_URL, process.env.HOMEFRAME_HA_TOKEN);
 
 const mime: Record<string, string> = {
   ".css": "text/css; charset=utf-8",
@@ -62,7 +66,22 @@ const server = createServer(async (request, response) => {
     }
 
     if (url.pathname === "/api/health") {
-      json(response, 200, { ok: true, service: "homeframe-runtime" });
+      json(response, 200, {
+        ok: true,
+        service: "homeframe-runtime",
+        homeAssistant: homeAssistant.snapshot().status,
+      });
+      return;
+    }
+
+    if (url.pathname === "/api/ha/snapshot") {
+      const snapshot = homeAssistant.snapshot();
+      json(response, snapshot.status === "error" ? 503 : 200, snapshot);
+      return;
+    }
+
+    if (url.pathname === "/api/ha/events") {
+      homeAssistant.attachEvents(response);
       return;
     }
 
@@ -95,6 +114,16 @@ const server = createServer(async (request, response) => {
 });
 
 server.listen(port, host, () => {
+  const haStatus = homeAssistant.snapshot().status;
   console.log(`Homeframe running at http://${host}:${port}`);
   console.log(`Dashboard data: ${process.env.HOMEFRAME_DATA_DIR ?? "~/.homeframe"}`);
+  console.log(`Home Assistant: ${haStatus}`);
 });
+
+function shutdown(): void {
+  homeAssistant.close();
+  server.close(() => process.exit(0));
+}
+
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);
