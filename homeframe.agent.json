@@ -1,0 +1,22 @@
+{
+  "name": "homeframe",
+  "version": "1",
+  "entryDocs": [
+    "AGENTS.md",
+    "agents/AGENTS.md",
+    "docs/ARCHITECTURE.md",
+    "docs/AI-FIRST.md",
+    "docs/HERMES.md"
+  ],
+  "schemas": {
+    "card": "schemas/card-manifest.schema.json",
+    "dashboard": "schemas/dashboard-manifest.schema.json"
+  },
+  "catalog": "catalog/cards",
+  "preferredMutation": "dashboard-manifest",
+  "verification": [
+    "npm run typecheck",
+    "npm run test",
+    "npm run build"
+  ]
+}
