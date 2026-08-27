@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://homeframe.dev/schemas/dashboard-manifest.schema.json",
+  "title": "Homeframe Dashboard Manifest",
+  "type": "object",
+  "required": ["schemaVersion", "name", "cards"],
+  "properties": {
+    "schemaVersion": { "const": "1" },
+    "name": { "type": "string", "minLength": 1 },
+    "generatedBy": { "type": "string" },
+    "cards": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["instanceId", "card"],
+        "properties": {
+          "instanceId": { "type": "string" },
+          "card": { "type": "string" },
+          "areaId": { "type": "string" },
+          "size": { "enum": ["sm", "md", "lg", "wide"] },
+          "bindings": {
+            "type": "object",
+            "additionalProperties": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}
