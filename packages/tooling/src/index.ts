@@ -22,6 +22,17 @@ function repoPath(root: string, ...parts: string[]): string {
   return path.resolve(root, ...parts);
 }
 
+async function loadDashboardValidator(root: string) {
+  const schemaRaw = await readFile(
+    repoPath(root, "schemas", "dashboard-manifest.schema.json"),
+    "utf8",
+  );
+
+  const ajv = new Ajv({ allErrors: true, strict: false });
+  addFormats(ajv);
+  return ajv.compile(JSON.parse(schemaRaw));
+}
+
 export async function listCards(root = process.cwd()): Promise<CardCatalogEntry[]> {
   const catalogDir = repoPath(root, "catalog", "cards");
   const files = (await readdir(catalogDir)).filter((file) => file.endsWith(".json"));
@@ -44,21 +55,11 @@ export async function getCard(
   return cards.find((card) => card.id === id);
 }
 
-export async function validateDashboardFile(
-  filePath: string,
+export async function validateDashboard(
+  dashboard: unknown,
   root = process.cwd(),
 ): Promise<ValidationResult> {
-  const [schemaRaw, dashboardRaw] = await Promise.all([
-    readFile(repoPath(root, "schemas", "dashboard-manifest.schema.json"), "utf8"),
-    readFile(path.resolve(filePath), "utf8"),
-  ]);
-
-  const schema = JSON.parse(schemaRaw);
-  const dashboard = JSON.parse(dashboardRaw);
-  const ajv = new Ajv({ allErrors: true, strict: false });
-  addFormats(ajv);
-
-  const validate = ajv.compile(schema);
+  const validate = await loadDashboardValidator(root);
   const valid = validate(dashboard);
 
   return {
@@ -67,6 +68,14 @@ export async function validateDashboardFile(
       `${error.instancePath || "/"} ${error.message ?? "is invalid"}`,
     ),
   };
+}
+
+export async function validateDashboardFile(
+  filePath: string,
+  root = process.cwd(),
+): Promise<ValidationResult> {
+  const dashboardRaw = await readFile(path.resolve(filePath), "utf8");
+  return validateDashboard(JSON.parse(dashboardRaw), root);
 }
 
 export async function doctor(root = process.cwd()): Promise<{
