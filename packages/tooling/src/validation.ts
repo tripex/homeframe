@@ -1,6 +1,6 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
-import Ajv from "ajv";
+import Ajv2020 from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
 import { frameworkRoot } from "./catalog.js";
 
@@ -9,6 +9,7 @@ export type ValidationResult = {
   errors: string[];
 };
 
+/** Validate a dashboard against Homeframe's JSON Schema 2020-12 contract. */
 export async function validateDashboard(
   manifest: unknown,
   root?: string,
@@ -18,7 +19,7 @@ export async function validateDashboard(
     "utf8",
   );
   const schema = JSON.parse(schemaRaw);
-  const ajv = new Ajv({ allErrors: true, strict: false });
+  const ajv = new Ajv2020({ allErrors: true, strict: false });
   addFormats(ajv);
 
   const validate = ajv.compile(schema);
