@@ -9,6 +9,7 @@
     "start": "node dist/server.js"
   },
   "dependencies": {
+    "@homeframe/core": "*",
     "@homeframe/tooling": "*"
   },
   "devDependencies": {
