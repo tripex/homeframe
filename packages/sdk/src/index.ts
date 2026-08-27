@@ -72,9 +72,12 @@ export type DashboardCard = {
 /**
  * A DashboardManifest is installation data, not framework source code.
  * Different screens should normally use separate manifests.
+ *
+ * Schema v2 is the first multi-device runtime contract. Homeframe has not made
+ * a public compatibility promise for the earlier prototype schema.
  */
 export type DashboardManifest = {
-  schemaVersion: "1";
+  schemaVersion: "2";
   id: string;
   name: string;
   target: DashboardTarget;
