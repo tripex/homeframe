@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://homeframe.dev/schemas/card-manifest.schema.json",
+  "title": "Homeframe Card Manifest",
+  "type": "object",
+  "required": [
+    "id",
+    "version",
+    "displayName",
+    "description",
+    "aiSummary",
+    "sizes",
+    "capabilities",
+    "props",
+    "actions"
+  ],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9-]+$" },
+    "version": { "type": "string" },
+    "displayName": { "type": "string" },
+    "description": { "type": "string" },
+    "aiSummary": {
+      "type": "string",
+      "description": "One compact sentence telling an AI when this card should be used."
+    },
+    "sizes": {
+      "type": "array",
+      "items": { "enum": ["sm", "md", "lg", "wide"] },
+      "minItems": 1
+    },
+    "capabilities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["kind"],
+        "properties": {
+          "kind": { "type": "string" },
+          "required": { "type": "boolean" },
+          "multiple": { "type": "boolean" }
+        }
+      }
+    },
+    "props": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["type", "description"],
+        "properties": {
+          "type": { "enum": ["string", "number", "boolean"] },
+          "description": { "type": "string" },
+          "default": {}
+        }
+      }
+    },
+    "actions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "description", "risk"],
+        "properties": {
+          "id": { "type": "string" },
+          "description": { "type": "string" },
+          "risk": { "enum": ["read", "control", "security"] }
+        }
+      }
+    }
+  }
+}
