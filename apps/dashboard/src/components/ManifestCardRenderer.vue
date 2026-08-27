@@ -94,10 +94,32 @@ const securityStatus = computed(() => {
   const bound = ["lock", "alarm", "garage"].flatMap((kind) => ids(props.card.bindings?.[kind]));
   if (!bound.length) return "Review";
 
-  const attentionStates = new Set(["unlocked", "open", "opening", "triggered", "pending"]);
-  return bound.some((entityId) => attentionStates.has(props.states.get(entityId)?.state ?? ""))
-    ? "Attention"
-    : "Secure";
+  const states = bound.map((entityId) => props.states.get(entityId)?.state);
+  if (states.some((state) => !state || state === "unknown" || state === "unavailable")) {
+    return "Review";
+  }
+
+  const attentionStates = new Set([
+    "unlocked",
+    "open",
+    "opening",
+    "triggered",
+    "pending",
+    "disarmed",
+  ]);
+  if (states.some((state) => attentionStates.has(state!))) return "Attention";
+
+  const secureStates = new Set([
+    "locked",
+    "closed",
+    "armed_home",
+    "armed_away",
+    "armed_night",
+    "armed_vacation",
+    "armed_custom_bypass",
+  ]);
+
+  return states.every((state) => secureStates.has(state!)) ? "Secure" : "Review";
 });
 </script>
 
