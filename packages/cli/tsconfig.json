@@ -3,7 +3,11 @@
   "compilerOptions": {
     "outDir": "dist",
     "rootDir": "src",
-    "types": ["node"]
+    "types": ["node"],
+    "baseUrl": ".",
+    "paths": {
+      "@homeframe/tooling": ["../tooling/src/index.ts"]
+    }
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts", "../tooling/src/**/*.ts"]
 }
