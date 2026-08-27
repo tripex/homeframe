@@ -10,11 +10,13 @@
   ],
   "scripts": {
     "dev": "npm run dev -w @homeframe/dashboard",
-    "build": "npm run build -w @homeframe/core && npm run build -w @homeframe/sdk && npm run build -w @homeframe/dashboard",
+    "build": "npm run build -w @homeframe/core && npm run build -w @homeframe/sdk && npm run build -w @homeframe/tooling && npm run build -w @homeframe/cli && npm run build -w @homeframe/mcp && npm run build -w @homeframe/dashboard",
     "typecheck": "npm run typecheck -ws --if-present",
     "test": "npm run check:entity-ids",
     "check:entity-ids": "node scripts/check-component-entity-ids.mjs",
-    "check": "npm run typecheck && npm run test && npm run build"
+    "check": "npm run typecheck && npm run test && npm run build",
+    "homeframe": "node packages/cli/dist/cli.js",
+    "mcp": "node packages/mcp/dist/server.js"
   },
   "engines": {
     "node": ">=20"
