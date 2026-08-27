@@ -1,0 +1,20 @@
+{
+  "id": "energy",
+  "version": "0.1.0",
+  "displayName": "Energy",
+  "description": "Live power and consumption summary.",
+  "aiSummary": "Use when a whole-home or high-confidence power/energy sensor is available.",
+  "sizes": ["md", "wide"],
+  "capabilities": [
+    { "kind": "power", "required": true },
+    { "kind": "energy" }
+  ],
+  "props": {
+    "title": {
+      "type": "string",
+      "description": "Card title",
+      "default": "Live usage"
+    }
+  },
+  "actions": []
+}
