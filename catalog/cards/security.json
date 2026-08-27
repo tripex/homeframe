@@ -1,0 +1,21 @@
+{
+  "id": "security",
+  "version": "0.2.0",
+  "displayName": "Security status",
+  "description": "Read-oriented overview of locks, alarms and garage state.",
+  "aiSummary": "Use for security context. Treat any future state-changing action as security risk and require explicit approval.",
+  "sizes": ["sm", "md"],
+  "capabilities": [
+    { "kind": "lock", "multiple": true },
+    { "kind": "alarm", "multiple": true },
+    { "kind": "garage", "multiple": true }
+  ],
+  "props": {},
+  "actions": [
+    {
+      "id": "change-security-state",
+      "description": "Any lock, alarm or garage state change must require an explicit user-approved security action.",
+      "risk": "security"
+    }
+  ]
+}

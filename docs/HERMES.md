@@ -1,47 +1,172 @@
 # Hermes integration
 
-Homeframe treats Hermes as an external agent that can understand the repository and, when available, inspect Home Assistant through MCP.
+Homeframe treats Hermes as a **user of the framework** during normal dashboard work.
 
-Hermes is **not** required to run Homeframe.
+Hermes should not edit Homeframe source code to configure a home. It should use Home Assistant MCP to understand the home and Homeframe MCP to create and change dashboard manifests.
 
-## Intended setup
+Framework development is a separate contributor workflow.
+
+## The two MCP servers
 
 ```text
-Homeframe repository ─────┐
-                          ├─→ Hermes
-Home Assistant MCP ───────┘
-                              ↓
-                       dashboard change
+Home Assistant MCP
+  → What exists in this concrete home?
+
+Homeframe MCP
+  → What can Homeframe render, and how do I create/change dashboards safely?
 ```
 
-Hermes gets two kinds of context:
+Together:
 
-1. the Homeframe repository, which tells it what the framework can render
-2. Home Assistant MCP, which tells it what exists in the user's home
+```text
+User request
+    ↓
+Hermes
+    ├── Home Assistant MCP → areas, devices, entities, states
+    └── Homeframe MCP      → cards, planner, manifests, bindings, layout
+              ↓
+       saved dashboards
+              ↓
+       Homeframe Runtime
+              ↓
+ tablet / Nest Hub / mobile / desktop
+```
 
-## Typical task
+## Normal dashboard workflow
 
-A user asks:
+When the user says something like:
 
-> Put my robot vacuum on the home screen and show whether it is cleaning or docked.
+> Build dashboards for my wall tablet, Nest Hub and phone.
 
 Hermes should:
 
-1. read `AGENTS.md`
-2. inspect the available Home Assistant entities through MCP
-3. identify a `vacuum` capability
-4. find an existing appliance/vacuum card manifest
-5. update the dashboard manifest/binding
-6. validate the manifest
-7. only change Vue code if the framework genuinely lacks the required reusable UI
+1. Inspect Home Assistant through its MCP server.
+2. Convert the relevant findings into Homeframe's neutral `HomeSnapshot` shape.
+3. Call `list_cards` if it needs to understand the available visual building blocks.
+4. Call `plan_dashboards` with the desired target profiles.
+5. Review the plan for obvious bad bindings or unwanted security surfaces.
+6. Call `create_planned_dashboards` to persist the dashboards.
+7. Use `set_binding`, `add_card`, `remove_card` and `set_card_layout` for refinements.
+8. Call `get_dashboard` to confirm the saved result.
+9. Do **not** edit Vue/TypeScript source for ordinary installation changes.
 
-## Repository permissions
+## HomeSnapshot
 
-An agent that can write to the repository should still use normal software-engineering safeguards:
+Homeframe intentionally does not depend on one particular Home Assistant MCP implementation. Hermes supplies a small semantic snapshot:
 
-- work on a branch
-- run typecheck/tests/build
-- describe what changed
-- use a pull request for non-trivial framework changes
+```json
+{
+  "name": "My Home",
+  "areas": [
+    {
+      "id": "living-room",
+      "name": "Living room",
+      "capabilities": {
+        "temperature": ["sensor.living_room_temperature"],
+        "light": ["light.living_room"],
+        "climate": ["climate.living_room"]
+      }
+    }
+  ],
+  "capabilities": {
+    "power": ["sensor.home_power"],
+    "vacuum": ["vacuum.robot"]
+  }
+}
+```
 
-Installation-specific dashboard configuration may eventually live outside the framework repository. Until that persistence model is finalized, agents should avoid committing secrets or private Home Assistant data.
+Concrete Home Assistant entity IDs are correct **inside bindings and HomeSnapshot**. They are not allowed inside reusable framework components.
+
+## Device profiles
+
+Homeframe currently ships these planning profiles:
+
+| Profile | Intended use | Default viewport | Grid |
+| --- | --- | --- | --- |
+| `tablet-10` | 10-inch wall/tabletop tablet | 1280×800 landscape | 12 columns |
+| `nest-hub` | Google Nest Hub-style display | 1024×600 landscape | 8 columns |
+| `mobile` | phone | 390×844 portrait | 4 columns |
+| `desktop` | browser/large monitor | 1440×900 landscape | 12 columns |
+| `custom` | manually specified layout | user-defined | 12 columns by default |
+
+Different devices should normally get separate DashboardManifests. They may reuse the same Home Assistant bindings while showing different cards and layouts.
+
+## Homeframe MCP write tools
+
+The important installation-level tools are:
+
+- `list_dashboards`
+- `get_dashboard`
+- `plan_dashboards`
+- `create_planned_dashboards`
+- `create_dashboard`
+- `save_dashboard`
+- `add_card`
+- `remove_card`
+- `set_binding`
+- `set_card_layout`
+- `reflow_dashboard`
+- `delete_dashboard`
+
+Framework discovery tools remain available:
+
+- `project_info`
+- `installation_info`
+- `list_cards`
+- `get_card`
+- `validate_dashboard`
+
+## Persistence
+
+Dashboard manifests are installation data. By default Homeframe stores them in:
+
+```text
+~/.homeframe/dashboards/
+```
+
+For a server/container deployment, set a persistent directory explicitly:
+
+```bash
+export HOMEFRAME_DATA_DIR=/var/lib/homeframe
+```
+
+The framework repository and this data directory should be kept separate.
+
+## Running the MCP server from a cloned repository
+
+```bash
+npm install
+npm run build
+
+export HOMEFRAME_ROOT=/path/to/homeframe
+export HOMEFRAME_DATA_DIR=/var/lib/homeframe
+node /path/to/homeframe/packages/mcp/dist/server.js
+```
+
+Configure Hermes to start that command as a stdio MCP server.
+
+## Rendering different dashboards
+
+Homeframe Runtime serves saved manifests to the browser.
+
+A device can request an exact dashboard:
+
+```text
+http://homeframe-host:4173/?dashboard=my-home-tablet-10
+http://homeframe-host:4173/?dashboard=my-home-nest-hub
+http://homeframe-host:4173/?dashboard=my-home-mobile
+```
+
+Without `?dashboard=...`, the frontend infers a device profile from the viewport and loads the first saved dashboard for that profile.
+
+## Security rule
+
+Homeframe's dashboard MCP changes configuration only. It does not directly unlock doors, disarm alarms or open garages.
+
+Cards declare action risk as `read`, `control` or `security`. Any future execution path for `security` actions must require explicit user approval in the product contract, not merely a prompt instruction.
+
+## When source-code changes are appropriate
+
+Only switch from installation work to framework development when Homeframe genuinely lacks a reusable capability/card needed by the user.
+
+That is a contributor task and should happen on a branch/PR. It is not part of normal dashboard creation.
