@@ -6,7 +6,9 @@ import {
   getDashboard,
   listDashboards,
   planAndSaveDashboards,
+  saveDashboard,
   setBinding,
+  setCardLayout,
 } from "../packages/tooling/dist/index.js";
 
 const dataDir = await mkdtemp(path.join(os.tmpdir(), "homeframe-smoke-"));
@@ -18,22 +20,29 @@ try {
   );
 
   const options = { dataDir, frameworkRoot };
-  const created = await planAndSaveDashboards(
-    {
-      home,
-      targets: ["tablet-10", "nest-hub", "mobile"],
-      namePrefix: "Smoke Home",
-    },
-    options,
-  );
+  const planRequest = {
+    home,
+    targets: ["tablet-10", "nest-hub", "mobile"],
+    namePrefix: "Smoke Home",
+  };
+
+  const created = await planAndSaveDashboards(planRequest, options);
 
   assert.equal(created.length, 3);
+  assert.ok(created.every((dashboard) => dashboard.schemaVersion === "2"));
   assert.deepEqual(
     created.map((dashboard) => dashboard.target.profile),
     ["tablet-10", "nest-hub", "mobile"],
   );
   assert.ok(created[0].cards.some((card) => card.card === "vacuum"));
   assert.ok(created[0].cards.some((card) => card.card === "security"));
+
+  // Re-running the planner is a create operation and must never overwrite
+  // dashboards that may have been refined after initial generation.
+  await assert.rejects(
+    () => planAndSaveDashboards(planRequest, options),
+    /Planned dashboard already exists/,
+  );
 
   const saved = await listDashboards(options);
   assert.equal(saved.length, 3);
@@ -44,6 +53,32 @@ try {
 
   const room = mobile.cards.find((card) => card.card === "room");
   assert.ok(room);
+
+  // A card cannot extend past the dashboard's declared target grid.
+  await assert.rejects(
+    () =>
+      setCardLayout(
+        mobile.id,
+        room.instanceId,
+        { x: 4, y: 0, w: 4, h: 3 },
+        options,
+      ),
+    /exceeds the 4-column grid/,
+  );
+
+  // Full-manifest saves must enforce the same instance-id invariant as addCard.
+  await assert.rejects(
+    () =>
+      saveDashboard(
+        {
+          ...mobile,
+          cards: [...mobile.cards, { ...room }],
+        },
+        options,
+      ),
+    /Duplicate card instance id/,
+  );
+
   await setBinding(
     mobile.id,
     room.instanceId,
