@@ -3,7 +3,6 @@ import path from "node:path";
 import { frameworkRoot } from "./catalog.js";
 
 export * from "./catalog.js";
-export * from "./dashboard-store.js";
 export * from "./operations.js";
 export * from "./planner.js";
 export * from "./validation.js";
