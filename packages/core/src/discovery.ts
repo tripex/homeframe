@@ -37,8 +37,12 @@ function classifyCapability(
 
   if (domain === "climate") return "climate";
   if (domain === "light") return "light";
+  // A garage door opener is a controllable cover, so it must be checked before
+  // the generic cover rule below or it would just be classified as "cover".
+  if (domain === "cover" && deviceClass === "garage") return "garage";
   if (domain === "cover") return "cover";
   if (domain === "lock") return "lock";
+  if (domain === "alarm_control_panel") return "alarm";
   if (domain === "vacuum") return "vacuum";
   if (domain === "media_player") return "media";
 
@@ -48,11 +52,21 @@ function classifyCapability(
   if (deviceClass === "power") return "power";
   if (deviceClass === "energy") return "energy";
   if (deviceClass === "window") return "window";
+  // "garage_door" here is a binary_sensor device class, i.e. a contact sensor
+  // reporting open/closed. It is not a controllable garage (that's the cover
+  // domain rule above), so it stays a plain door for dashboard purposes.
   if (deviceClass === "door" || deviceClass === "garage_door") return "door";
   if (deviceClass === "motion" || deviceClass === "occupancy") return "motion";
   if (deviceClass === "presence") return "presence";
 
-  if (/washer|washing|vaskemask|laundry/.test(searchableName)) return "washer";
+  // Washers and dryers rarely expose a standard device class, so fall back to
+  // name matching. Restricted to domains that plausibly report appliance
+  // status/progress as a sensor, contact, or plug rather than an operable
+  // switch/cover with its own domain handling above.
+  if (domain === "sensor" || domain === "binary_sensor" || domain === "switch") {
+    if (/washer|washing|vaskemask|laundry/.test(searchableName)) return "washer";
+    if (/dryer|tumble|tørretumbler|torretumbler/.test(searchableName)) return "dryer";
+  }
 
   return "generic";
 }

@@ -51,13 +51,16 @@ export type CapabilityKind =
   | "light"
   | "climate"
   | "cover"
+  | "garage"
   | "lock"
+  | "alarm"
   | "presence"
   | "window"
   | "door"
   | "motion"
   | "vacuum"
   | "washer"
+  | "dryer"
   | "media"
   | "generic";
 
