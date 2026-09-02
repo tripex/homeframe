@@ -1,3 +1,3 @@
-export * from "./types";
-export * from "./discovery";
-export * from "./websocket";
+export * from "./types.js";
+export * from "./discovery.js";
+export * from "./websocket.js";

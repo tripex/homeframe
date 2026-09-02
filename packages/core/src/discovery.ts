@@ -5,7 +5,7 @@ import type {
   HassState,
   RegistrySnapshot,
   SemanticHome,
-} from "./types";
+} from "./types.js";
 
 function getDomain(entityId: string): string {
   return entityId.split(".")[0] ?? "unknown";
