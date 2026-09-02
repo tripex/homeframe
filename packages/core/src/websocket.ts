@@ -1,4 +1,4 @@
-import type { HassState, RegistrySnapshot, ServiceCall } from "./types";
+import type { HassState, RegistrySnapshot, ServiceCall } from "./types.js";
 
 type PendingRequest = {
   resolve: (value: unknown) => void;

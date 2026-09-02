@@ -9,6 +9,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
+    "@homeframe/core": "*",
     "@homeframe/sdk": "*",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1"

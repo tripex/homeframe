@@ -60,12 +60,30 @@ It owns:
 
 It should not contain Home Assistant registry logic.
 
+## 5. Runtime — `packages/runtime`
+
+Homeframe Runtime is the process a screen talks to. It serves the built dashboard, the saved manifests and a read-only stream of Home Assistant states, and it is the only place that holds the Home Assistant token.
+
+Card actions follow the same boundary. A screen never sends an entity id or a service name; it sends a dashboard id, a card instance id and an action id from the card catalog. `packages/tooling/src/actions.ts` turns that into a Home Assistant service call using the card's saved bindings, so the catalog's declared risk level decides what may happen:
+
+```text
+screen  →  POST /api/actions { dashboardId, instanceId, actionId }
+             ↓
+        card catalog (risk: read | control | security)
+             ↓
+        saved bindings → Home Assistant service call
+```
+
+`control` actions run only when the runtime is started with `HOMEFRAME_ALLOW_CONTROL=true`. `security` actions are refused unconditionally until Homeframe has an explicit approval path.
+
 ## Dependency direction
 
 The intended direction is:
 
 ```text
 presentation
+    ↓
+runtime / tooling
     ↓
 SDK / semantic contracts
     ↓

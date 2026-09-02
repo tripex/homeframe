@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Bot, WashingMachine } from "lucide-vue-next";
+import { Bot, Home, Pause, Play, WashingMachine } from "lucide-vue-next";
 import GlassCard from "./GlassCard.vue";
 
 const props = defineProps<{
@@ -8,6 +8,14 @@ const props = defineProps<{
   state: string;
   detail?: string;
   progress?: number;
+  controllable?: boolean;
+  running?: boolean;
+  pending?: boolean;
+}>();
+
+defineEmits<{
+  "start-pause": [];
+  "return-home": [];
 }>();
 
 const icons = {
@@ -34,6 +42,27 @@ const icons = {
 
     <div v-if="progress !== undefined" class="progress">
       <span :style="{ width: `${progress}%` }" />
+    </div>
+
+    <div v-if="kind === 'vacuum' && controllable" class="appliance-actions">
+      <button
+        type="button"
+        class="icon-button appliance-action"
+        :disabled="pending"
+        :aria-label="running ? 'Pause vacuum' : 'Start vacuum'"
+        @click="$emit('start-pause')"
+      >
+        <component :is="running ? Pause : Play" :size="15" />
+      </button>
+      <button
+        type="button"
+        class="icon-button appliance-action"
+        :disabled="pending"
+        aria-label="Send vacuum home"
+        @click="$emit('return-home')"
+      >
+        <Home :size="15" />
+      </button>
     </div>
   </GlassCard>
 </template>

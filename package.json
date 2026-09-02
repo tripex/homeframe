@@ -12,7 +12,7 @@
     "dev": "npm run dev -w @homeframe/dashboard",
     "build": "npm run build -w @homeframe/core && npm run build -w @homeframe/sdk && npm run build -w @homeframe/tooling && npm run build -w @homeframe/cli && npm run build -w @homeframe/mcp && npm run build -w @homeframe/dashboard && npm run build -w @homeframe/runtime",
     "typecheck": "npm run typecheck -ws --if-present",
-    "test": "node scripts/check-component-entity-ids.mjs && node scripts/smoke-dashboard-engine.mjs",
+    "test": "node scripts/check-component-entity-ids.mjs && node --test packages/core/test/*.mjs packages/tooling/test/*.mjs && node scripts/smoke-dashboard-engine.mjs && node scripts/smoke-home-snapshot.mjs && node scripts/smoke-runtime.mjs",
     "check:entity-ids": "node scripts/check-component-entity-ids.mjs",
     "check": "npm run build && npm run typecheck && npm run test",
     "homeframe": "node packages/cli/dist/cli.js",

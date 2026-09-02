@@ -38,10 +38,15 @@ When the user says something like:
 
 > Build dashboards for my wall tablet, Nest Hub and phone.
 
-Hermes should:
+If Homeframe Runtime is connected to Home Assistant, the easiest path for steps 1-2 is a
+single call to `snapshot_home`, which returns a ready-made `HomeSnapshot` directly. Otherwise,
+or when finer control over the grouping is needed, Hermes should:
 
 1. Inspect Home Assistant through its MCP server.
 2. Convert the relevant findings into Homeframe's neutral `HomeSnapshot` shape.
+
+Either way, Hermes should then:
+
 3. Call `list_cards` if it needs to understand the available visual building blocks.
 4. Call `plan_dashboards` with the desired target profiles.
 5. Review the plan for obvious bad bindings or unwanted security surfaces.
@@ -97,6 +102,7 @@ The important installation-level tools are:
 
 - `list_dashboards`
 - `get_dashboard`
+- `snapshot_home`
 - `plan_dashboards`
 - `create_planned_dashboards`
 - `create_dashboard`
