@@ -6,6 +6,7 @@ export * from "./catalog.js";
 export * from "./operations.js";
 export * from "./planner.js";
 export * from "./validation.js";
+export * from "./home-snapshot.js";
 
 export async function doctor(root?: string): Promise<{
   ok: boolean;

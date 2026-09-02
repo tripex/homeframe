@@ -18,7 +18,8 @@ Turn the user's real Home Assistant setup into one or more saved Homeframe Dashb
 
 1. Inspect Home Assistant areas, devices and entities.
 2. Group relevant entities into semantic capabilities.
-3. Build a HomeSnapshot.
+3. Build a HomeSnapshot. If Homeframe Runtime is already connected to Home Assistant, call
+   `snapshot_home` instead of steps 1-3 to get one directly.
 4. Choose target profiles.
 5. Call `plan_dashboards` first.
 6. Check that entity bindings are high-confidence and that important devices are represented.

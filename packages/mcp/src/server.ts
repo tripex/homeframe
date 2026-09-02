@@ -10,6 +10,7 @@ import {
   installationInfo,
   listCards,
   listDashboards,
+  loadHomeSnapshot,
   planAndSaveDashboards,
   planDashboards,
   projectInfo,
@@ -129,6 +130,22 @@ serveStdio(() => {
       inputSchema: z.object({ id: z.string().min(1) }),
     },
     async ({ id }) => text((await getDashboard(id)) ?? { error: `Unknown dashboard: ${id}` }),
+  );
+
+  server.registerTool(
+    "snapshot_home",
+    {
+      description:
+        "Read the live home through Homeframe Runtime (or a direct Home Assistant connection " +
+        "via HOMEFRAME_HA_URL/HOMEFRAME_HA_TOKEN) and return a HomeSnapshot ready for " +
+        "plan_dashboards/create_planned_dashboards. Agents that already have a Home Assistant " +
+        "MCP server may still hand-build the snapshot from that instead of calling this tool.",
+      inputSchema: z.object({
+        runtimeUrl: z.string().url().optional(),
+        name: z.string().optional(),
+      }),
+    },
+    async ({ runtimeUrl, name }) => text(await loadHomeSnapshot({ runtimeUrl, name })),
   );
 
   server.registerTool(

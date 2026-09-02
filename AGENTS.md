@@ -13,7 +13,8 @@ Do **not** edit Vue, TypeScript, card manifests or framework architecture for or
 Preferred flow:
 
 1. inspect the home through Home Assistant MCP
-2. build a semantic HomeSnapshot
+2. build a semantic HomeSnapshot (or call `snapshot_home` instead of steps 1-2 when Homeframe
+   Runtime is already connected to Home Assistant)
 3. call `plan_dashboards`
 4. review the proposed device-specific manifests
 5. call `create_planned_dashboards`

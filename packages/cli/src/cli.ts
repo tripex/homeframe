@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import {
   addCard,
   createDashboard,
@@ -9,6 +9,7 @@ import {
   installationInfo,
   listCards,
   listDashboards,
+  loadHomeSnapshot,
   planAndSaveDashboards,
   planDashboards,
   projectInfo,
@@ -22,6 +23,13 @@ import {
   type HomeSnapshot,
 } from "@homeframe/tooling";
 import type { DashboardManifest, DeviceProfileId } from "@homeframe/sdk";
+
+/** Pull the value following a "--name value" flag out of a raw argument list. */
+function flag(values: string[], name: string): string | undefined {
+  const index = values.indexOf(`--${name}`);
+  if (index === -1 || index === values.length - 1) return undefined;
+  return values[index + 1];
+}
 
 function printHelp(): void {
   console.log(`Homeframe CLI
@@ -40,7 +48,7 @@ Dashboards
   homeframe dashboard save <file>
   homeframe dashboard create <id> <name> <profile>
   homeframe dashboard delete <id>
-  homeframe dashboard plan <home-snapshot.json> <profiles> [--save]
+  homeframe dashboard plan <home-snapshot.json|live> <profiles> [--save]
   homeframe dashboard reflow <id>
 
 Cards and bindings
@@ -48,6 +56,12 @@ Cards and bindings
   homeframe card remove <dashboard> <instance-id>
   homeframe binding set <dashboard> <instance-id> <capability> <entity[,entity...]>
   homeframe layout set <dashboard> <instance-id> <x> <y> <w> <h>
+
+Home
+  homeframe home snapshot [--runtime <url>] [--name <name>] [--out <file>]
+    Reads the live home through Homeframe Runtime, or HOMEFRAME_HA_URL/HOMEFRAME_HA_TOKEN
+    for a direct Home Assistant connection, and prints it as a HomeSnapshot. "dashboard plan"
+    also accepts "live" in place of a file path to load a snapshot this way.
 
 Profiles
   tablet-10, nest-hub, mobile, desktop, custom
@@ -132,7 +146,8 @@ async function main(): Promise<void> {
   }
 
   if (group === "dashboard" && command === "plan" && values.length >= 2) {
-    const home = await readJson<HomeSnapshot>(values[0]);
+    const home =
+      values[0] === "live" ? await loadHomeSnapshot() : await readJson<HomeSnapshot>(values[0]);
     const targets = values[1].split(",") as DeviceProfileId[];
     const request = { home, targets };
     print(values.includes("--save") ? await planAndSaveDashboards(request) : planDashboards(request));
@@ -179,6 +194,21 @@ async function main(): Promise<void> {
         h: Number(h),
       }),
     );
+    return;
+  }
+
+  if (group === "home" && command === "snapshot") {
+    const snapshot = await loadHomeSnapshot({
+      runtimeUrl: flag(values, "runtime"),
+      name: flag(values, "name"),
+    });
+    const out = flag(values, "out");
+    if (out) {
+      await writeFile(out, `${JSON.stringify(snapshot, null, 2)}\n`);
+      console.log(`Wrote ${out}`);
+    } else {
+      print(snapshot);
+    }
     return;
   }
 
