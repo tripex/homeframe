@@ -8,11 +8,15 @@ import EnergyCard from "./cards/EnergyCard.vue";
 import GlassCard from "./cards/GlassCard.vue";
 import RoomCard from "./cards/RoomCard.vue";
 import SecurityCard from "./cards/SecurityCard.vue";
+import { useDashboardActions } from "../composables/useDashboardActions";
 
 const props = defineProps<{
   card: DashboardCard;
   states: Map<string, HassState>;
+  dashboardId: string;
 }>();
+
+const { canControl, isPending, run } = useDashboardActions();
 
 function ids(binding: EntityBinding | undefined): string[] {
   if (!binding) return [];
@@ -60,6 +64,7 @@ const climateZones = computed(() =>
 
     return [
       {
+        id: entityId,
         name: String(state.attributes.friendly_name ?? entityId),
         current,
         target,
@@ -121,6 +126,27 @@ const securityStatus = computed(() => {
 
   return states.every((state) => secureStates.has(state!)) ? "Secure" : "Review";
 });
+
+const vacuumRunning = computed(() => applianceState.value?.state === "cleaning");
+
+function toggleLights(): void {
+  void run(props.dashboardId, props.card.instanceId, "toggle-lights");
+}
+
+function setTemperature(payload: { zoneId: string | undefined; temperature: number }): void {
+  void run(props.dashboardId, props.card.instanceId, "set-temperature", {
+    entityId: payload.zoneId,
+    temperature: payload.temperature,
+  });
+}
+
+function startPauseVacuum(): void {
+  void run(props.dashboardId, props.card.instanceId, "start-pause");
+}
+
+function returnVacuumHome(): void {
+  void run(props.dashboardId, props.card.instanceId, "return-home");
+}
 </script>
 
 <template>
@@ -132,6 +158,9 @@ const securityStatus = computed(() => {
       :humidity="numericState('humidity')"
       :lights-on="lightsOn"
       :active="lightsOn > 0"
+      :controllable="canControl"
+      :pending="isPending(card.instanceId, 'toggle-lights')"
+      @toggle-lights="toggleLights"
     />
 
     <EnergyCard
@@ -143,6 +172,9 @@ const securityStatus = computed(() => {
     <ClimateCard
       v-else-if="card.card === 'climate' && climateZones.length"
       :zones="climateZones"
+      :controllable="canControl"
+      :pending="isPending(card.instanceId, 'set-temperature')"
+      @set-temperature="setTemperature"
     />
 
     <ApplianceCard
@@ -151,6 +183,11 @@ const securityStatus = computed(() => {
       :title="applianceTitle"
       :state="applianceState?.state ?? 'Unavailable'"
       :detail="String(applianceState?.attributes.friendly_name ?? '') || undefined"
+      :controllable="canControl"
+      :running="vacuumRunning"
+      :pending="isPending(card.instanceId, 'start-pause') || isPending(card.instanceId, 'return-home')"
+      @start-pause="startPauseVacuum"
+      @return-home="returnVacuumHome"
     />
 
     <SecurityCard

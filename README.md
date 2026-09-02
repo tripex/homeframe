@@ -115,7 +115,8 @@ Normal dashboard work should use MCP/CLI operations. Editing Vue/TypeScript is a
 - Home Assistant WebSocket client
 - area/device/entity/state registry loading
 - realtime state subscriptions
-- semantic discovery of common Home Assistant capabilities
+- semantic discovery of common Home Assistant capabilities, including locks, alarms, garages and laundry appliances
+- one-step live HomeSnapshot from a connected runtime (`snapshot_home`, `homeframe home snapshot`)
 - declarative card and dashboard contracts
 - JSON Schema 2020-12 manifest validation
 - persistent installation dashboard store
@@ -123,7 +124,7 @@ Normal dashboard work should use MCP/CLI operations. Editing Vue/TypeScript is a
 - grid layout and per-card bindings/props
 - CLI for dashboard operations
 - stdio MCP server with read **and write** dashboard tools
-- read-only runtime HTTP API for screens
+- runtime HTTP API for screens, with opt-in execution of `control` card actions
 - exact dashboard selection by URL or automatic profile selection
 - room, climate, energy, appliance, vacuum and security card contracts
 - conservative security-state rendering
@@ -238,6 +239,14 @@ export HOMEFRAME_HA_TOKEN=your-long-lived-access-token
 npm start
 ```
 
+Screens can toggle lights, adjust climate targets and start or dock a vacuum once you opt in:
+
+```bash
+export HOMEFRAME_ALLOW_CONTROL=true
+```
+
+The runtime only executes actions declared in the card catalog, on entities bound in the saved dashboard, and it refuses every `security` action until Homeframe has an explicit approval path. Leave the flag off on networks you do not trust, because the runtime has no authentication yet.
+
 The reference frontend also contains a development connection flow that talks to Home Assistant's WebSocket API directly from the browser.
 
 For local development you can use:
@@ -304,6 +313,8 @@ Start with [`AGENTS.md`](AGENTS.md) as an AI agent.
 - write-capable CLI/MCP
 - runtime API and renderer
 - installation-agent contract
+- live HomeSnapshot from a connected runtime
+- opt-in `control` actions from screens, `security` actions always refused
 
 ### Next
 
@@ -316,7 +327,8 @@ Start with [`AGENTS.md`](AGENTS.md) as an AI agent.
 - Home Assistant-native/community-dashboard packaging
 - HACS-friendly distribution
 - stable migration/versioning guarantees
-- approved runtime action execution for `control` and `security` operations
+- runtime authentication before `control` actions are enabled by default
+- explicit approval path for `security` actions (locks, alarms, garages)
 
 ## Contributing
 

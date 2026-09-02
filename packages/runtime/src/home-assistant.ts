@@ -4,6 +4,7 @@ import {
   HomeAssistantClient,
   type HassState,
   type SemanticHome,
+  type ServiceCall,
 } from "@homeframe/core";
 
 export type RuntimeHomeAssistantStatus =
@@ -22,9 +23,9 @@ export type RuntimeHomeAssistantSnapshot = {
 /**
  * Keeps the Home Assistant credential on the Homeframe server.
  *
- * Browsers receive only states and semantic discovery data. The runtime does
- * not currently expose Home Assistant service calls, so this session is
- * deliberately read-only from the screen's point of view.
+ * Browsers receive only states and semantic discovery data. Service calls go
+ * through `callService`, which the HTTP layer only exposes for resolved card
+ * actions, never for arbitrary entity ids sent by a screen.
  */
 export class RuntimeHomeAssistant {
   private client?: HomeAssistantClient;
@@ -73,6 +74,18 @@ export class RuntimeHomeAssistant {
       states: [...this.states.values()],
       semanticHome: this.semanticHome,
     };
+  }
+
+  currentStates(): Map<string, HassState> {
+    return this.states;
+  }
+
+  /** Execute one Home Assistant service call. Throws when there is no live connection. */
+  async callService(call: ServiceCall): Promise<unknown> {
+    if (!this.client || this.status !== "connected") {
+      throw new Error(`Home Assistant is not connected (status: ${this.status})`);
+    }
+    return this.client.callService(call);
   }
 
   attachEvents(response: ServerResponse): void {

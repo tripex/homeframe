@@ -27,6 +27,12 @@ When running from a cloned source tree, also tell tooling where framework schema
 export HOMEFRAME_ROOT=/path/to/homeframe
 ```
 
+To let `home snapshot` and `dashboard plan live` find a running Homeframe Runtime without passing `--runtime` every time:
+
+```bash
+export HOMEFRAME_RUNTIME_URL=http://127.0.0.1:4173
+```
+
 ## Build
 
 ```bash
@@ -52,6 +58,18 @@ node packages/cli/dist/cli.js installation-info
 node packages/cli/dist/cli.js doctor
 ```
 
+### Read the live home
+
+```bash
+node packages/cli/dist/cli.js home snapshot
+```
+
+Prints a `HomeSnapshot` built from whichever live source is configured: a Homeframe Runtime
+(`--runtime <url>`, `HOMEFRAME_RUNTIME_URL`, or the default `http://127.0.0.1:4173`), or a
+direct `HOMEFRAME_HA_URL`/`HOMEFRAME_HA_TOKEN` connection when no runtime is available. Add
+`--name <name>` to set the snapshot's `name`, or `--out <file>` to write it to a file instead
+of stdout.
+
 ### Work with dashboards
 
 ```bash
@@ -70,6 +88,12 @@ node packages/cli/dist/cli.js dashboard reflow wall-tablet
 node packages/cli/dist/cli.js dashboard plan \
   examples/home-snapshot.json \
   tablet-10,nest-hub,mobile
+```
+
+Pass `live` instead of a file path to plan straight from a live home (see `home snapshot` above):
+
+```bash
+node packages/cli/dist/cli.js dashboard plan live tablet-10,nest-hub,mobile
 ```
 
 Add `--save` to persist the plan:
@@ -134,6 +158,12 @@ Configure that process as an MCP server in the agent that should manage the inst
 : Reads one saved dashboard by ID.
 
 ### Planning
+
+`snapshot_home`
+: Reads the live home through Homeframe Runtime (or a direct Home Assistant connection via
+`HOMEFRAME_HA_URL`/`HOMEFRAME_HA_TOKEN`) and returns a `HomeSnapshot` ready for
+`plan_dashboards`/`create_planned_dashboards`. Agents that already have a Home Assistant MCP
+server may still hand-build the snapshot from that instead.
 
 `plan_dashboards`
 : Accepts a neutral semantic HomeSnapshot plus one or more device profiles and returns deterministic proposed manifests without writing anything.
@@ -236,7 +266,7 @@ Entity IDs are correct in this installation-level object and in DashboardManifes
 
 ## Safety boundary
 
-The Homeframe MCP server currently changes **dashboard configuration**, not Home Assistant device state.
+The Homeframe MCP server and CLI change **dashboard configuration**, not Home Assistant device state.
 
 Card contracts label possible actions as:
 
@@ -244,7 +274,7 @@ Card contracts label possible actions as:
 - `control`
 - `security`
 
-Future runtime execution of lock/alarm/garage actions must preserve explicit security approval. Creating or editing a security-status card is not the same as executing a security action.
+Homeframe Runtime can execute `control` actions on behalf of a screen (see below). It refuses every `security` action. Creating or editing a security-status card is not the same as executing a security action.
 
 ## Runtime
 
@@ -261,3 +291,32 @@ http://homeframe-host:4173/?dashboard=my-home-tablet-10
 ```
 
 Or load `/` and allow the frontend to infer a device profile and select the first matching saved dashboard.
+
+### Card actions
+
+Screens can execute the `control` actions a card declares in `catalog/cards`, for example toggling a room's lights, adjusting a climate target or docking a vacuum. Execution is off by default:
+
+```bash
+export HOMEFRAME_ALLOW_CONTROL=true
+npm start
+```
+
+A screen posts a card action, never a raw service call:
+
+```http
+POST /api/actions
+{ "dashboardId": "my-home-tablet-10", "instanceId": "room-kitchen", "actionId": "toggle-lights" }
+```
+
+The runtime looks up the card in the saved dashboard, checks the action's risk in the card catalog and builds the Home Assistant service call from the card's own bindings. Responses carry a stable `reason`:
+
+| Status | Reason | Meaning |
+| --- | --- | --- |
+| 200 | | executed; `call` shows the service call that ran |
+| 400 | `invalid-request`, `invalid-input`, `no-bound-entities`, `entity-not-bound`, `unsupported-action` | the request cannot be mapped to a service call |
+| 403 | `control-disabled` | runtime started without `HOMEFRAME_ALLOW_CONTROL=true` |
+| 403 | `security-approval-required` | lock, alarm and garage actions are always refused |
+| 404 | `unknown-dashboard`, `unknown-card-instance`, `unknown-action` | nothing matches the saved dashboard or catalog |
+| 503 | `home-assistant-unavailable` | runtime is not connected to Home Assistant |
+
+`GET /api/health` reports `controlActions: "enabled" | "disabled"` so a screen can hide controls that would be refused.

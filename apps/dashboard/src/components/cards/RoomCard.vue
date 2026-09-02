@@ -9,6 +9,12 @@ const props = defineProps<{
   humidity?: number;
   lightsOn?: number;
   active?: boolean;
+  controllable?: boolean;
+  pending?: boolean;
+}>();
+
+defineEmits<{
+  "toggle-lights": [];
 }>();
 
 const formattedTemperature = computed(() =>
@@ -23,7 +29,20 @@ const formattedTemperature = computed(() =>
         <span class="eyebrow">ROOM</span>
         <h2>{{ name }}</h2>
       </div>
-      <ChevronRight :size="20" class="muted" />
+      <div class="room-top-actions">
+        <button
+          v-if="controllable"
+          type="button"
+          class="icon-button card-toggle"
+          :class="{ active }"
+          :disabled="pending"
+          :aria-label="`Toggle lights in ${name}`"
+          @click="$emit('toggle-lights')"
+        >
+          <Lightbulb :size="15" />
+        </button>
+        <ChevronRight :size="20" class="muted" />
+      </div>
     </div>
 
     <div class="metric-row">

@@ -9,6 +9,7 @@ import SecurityCard from "./components/cards/SecurityCard.vue";
 import BottomNav from "./components/layout/BottomNav.vue";
 import ManifestCardRenderer from "./components/ManifestCardRenderer.vue";
 import ConnectionModal from "./components/settings/ConnectionModal.vue";
+import { useDashboardActions } from "./composables/useDashboardActions";
 import { useDashboardData } from "./composables/useDashboardData";
 import { useDashboardManifest } from "./composables/useDashboardManifest";
 import { useHomeAssistant } from "./composables/useHomeAssistant";
@@ -32,6 +33,7 @@ const {
   status: manifestStatus,
   load: loadManifest,
 } = useDashboardManifest();
+const { lastError: actionError, loadStatus: loadActionStatus } = useDashboardActions();
 
 const now = ref(new Date());
 const showConnectionModal = ref(false);
@@ -70,6 +72,7 @@ onMounted(async () => {
   }, 30_000);
 
   await loadManifest();
+  await loadActionStatus();
 
   const runtimeConnected = await connectRuntime();
   if (!runtimeConnected) {
@@ -120,6 +123,10 @@ onUnmounted(() => {
           <p v-else>
             {{ manifestStatus === "loading" ? "Loading installation dashboard…" : "Reference view. Create a dashboard with CLI or MCP to replace it." }}
           </p>
+          <p v-if="actionError" class="action-error">
+            {{ actionError }}
+            <button type="button" class="dismiss-error" @click="actionError = undefined">Dismiss</button>
+          </p>
         </div>
         <button type="button">Ask home</button>
       </section>
@@ -130,6 +137,7 @@ onUnmounted(() => {
           :key="card.instanceId"
           :card="card"
           :states="states"
+          :dashboard-id="manifest.id"
         />
       </section>
 
