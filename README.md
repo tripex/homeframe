@@ -230,7 +230,15 @@ See [`docs/HERMES.md`](docs/HERMES.md) for the intended agent workflow and [`doc
 
 ## Connecting Home Assistant
 
-The reference frontend currently contains a development connection flow using Home Assistant's WebSocket API.
+The preferred way to connect a real home is through Homeframe Runtime, which keeps the Home Assistant token on the server and only sends states and semantic discovery data to screens:
+
+```bash
+export HOMEFRAME_HA_URL=http://homeassistant.local:8123
+export HOMEFRAME_HA_TOKEN=your-long-lived-access-token
+npm start
+```
+
+The reference frontend also contains a development connection flow that talks to Home Assistant's WebSocket API directly from the browser.
 
 For local development you can use:
 
