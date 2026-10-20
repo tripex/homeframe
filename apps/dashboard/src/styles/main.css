@@ -37,6 +37,7 @@ main { position:relative; max-width:1380px; margin:0 auto; padding:54px 38px }
 .dismiss-error { background:transparent; border:0; padding:0; margin-left:auto; color:#ff9d9d; text-decoration:underline; cursor:pointer; font-size:12px }
 .ai-strip button { background:rgba(255,255,255,.075); border:1px solid var(--border); border-radius:12px; padding:10px 14px; cursor:pointer }
 .dashboard-grid { display:grid; grid-template-columns:repeat(12,1fr); gap:16px }
+.dashboard-grid:not(.manifest-grid) { grid-auto-flow:dense }
 .glass-card { grid-column:span 4; min-height:220px; padding:22px; background:linear-gradient(145deg,rgba(27,33,44,.75),rgba(15,19,27,.64)); border:1px solid var(--border); border-radius:var(--radius); box-shadow:inset 0 1px 0 rgba(255,255,255,.035),0 24px 60px rgba(0,0,0,.18); backdrop-filter:blur(28px); transition:transform .25s ease,border-color .25s ease }
 .glass-card:hover { transform:translateY(-2px); border-color:rgba(255,255,255,.14) }
 .room-card,.energy-card { grid-column:span 4 }
@@ -94,10 +95,52 @@ main { position:relative; max-width:1380px; margin:0 auto; padding:54px 38px }
 .connect-error { color:#ff9d9d!important; background:rgba(255,80,80,.08); padding:10px 12px; border-radius:10px }
 .connect-modal small { display:block; color:#737d8d; font-size:11px; line-height:1.45 }
 
+/* Energy flow card */
+.energy-flow-card { grid-column:span 8; display:flex; flex-direction:column; min-height:440px; --solar:#ffc85c; --grid:#7bdcff; --export:#6ee7a8; --battery:#a998ff; --ev:#ff9f7a }
+.flow-stage { flex:1; min-height:0; display:flex; align-items:center; justify-content:center; margin:6px -6px 4px }
+.flow-canvas { width:100%; height:100%; max-height:380px; overflow:visible }
+.flow-track { fill:none; stroke:rgba(255,255,255,.06); stroke-width:2 }
+.flow-dots { fill:none; stroke-width:4; stroke-linecap:round; stroke-dasharray:0.1 11.9; opacity:0; transition:opacity .6s ease }
+.flow.active .flow-track { stroke:color-mix(in srgb,var(--tone) 22%,transparent) }
+.flow.active .flow-dots { opacity:1; stroke:var(--tone); filter:drop-shadow(0 0 4px var(--tone)) }
+.flow.solar,.node.solar,.ring-segment.solar { --tone:var(--solar) }
+.flow.grid,.node.grid,.ring-segment.grid { --tone:var(--grid) }
+.flow.export,.node.export { --tone:var(--export) }
+.flow.battery,.node.battery,.ring-segment.battery { --tone:var(--battery) }
+.flow.ev,.node.ev { --tone:var(--ev) }
+.node.home { --tone:#e9eef6 }
+.node-body { fill:rgba(14,18,26,.92); stroke:rgba(255,255,255,.1); stroke-width:1.5; transition:stroke .4s ease }
+.node.active .node-body { stroke:color-mix(in srgb,var(--tone) 70%,transparent); filter:drop-shadow(0 0 10px color-mix(in srgb,var(--tone) 35%,transparent)) }
+.node.home .node-body { stroke:rgba(255,255,255,.08); filter:none }
+.node-icon { color:#8f98a8; transition:color .4s ease }
+.node.active .node-icon { color:var(--tone) }
+.node-value { fill:#f3f5f8; font-size:13px; font-weight:650; text-anchor:middle; font-variant-numeric:tabular-nums; letter-spacing:-.02em }
+.node-value.small { font-size:11.5px }
+.node-unit { fill:#8f98a8; font-size:9px; font-weight:500 }
+.node-label { fill:#8f98a8; font-size:10px; font-weight:700; letter-spacing:.12em; text-transform:uppercase; text-anchor:middle }
+.node-label.start { text-anchor:start }
+.node-label.end { text-anchor:end }
+.ring-track { fill:none; stroke:rgba(255,255,255,.06); stroke-width:4 }
+.ring-segment { fill:none; stroke:var(--tone); stroke-width:4; stroke-linecap:round; transition:stroke-dasharray .8s ease,stroke-dashoffset .8s ease }
+.ring-segment.self { --tone:#6ee7a8; stroke-width:6 }
+.mini-ring .ring-track { stroke-width:6 }
+.flow-footer { gap:12px }
+.mini-ring { width:38px; height:38px; flex:none }
+.footer-metric { display:grid; gap:2px }
+.footer-metric strong { margin:0; font-size:15px; color:#e4e8ee; font-variant-numeric:tabular-nums }
+.footer-metric span { color:var(--muted); font-size:11px }
+.footer-metric.right { margin-left:auto; text-align:right }
+.price-chip { display:inline-flex; align-items:center; gap:7px; padding:7px 11px; border-radius:999px; font-size:11px; color:#c3c9d2; background:rgba(255,255,255,.05); border:1px solid var(--border); white-space:nowrap }
+.price-chip strong { color:#f3f5f8; font-variant-numeric:tabular-nums }
+.price-chip.low { border-color:rgba(110,231,168,.32); background:rgba(110,231,168,.08); color:#a9f0c9 }
+.price-chip.high { border-color:rgba(255,159,122,.32); background:rgba(255,159,122,.08); color:#ffc3ab }
+@media (prefers-reduced-motion: reduce) { .flow.active .flow-dots { stroke-dasharray:none; opacity:.55 } }
+
 @media(max-width:900px) {
   main { padding:34px 20px }
   .topbar { flex-direction:column; gap:20px }
   .glass-card,.room-card,.energy-card,.climate-card,.security-card { grid-column:span 6 }
+  .energy-flow-card { grid-column:1 / -1 }
   .bottom-nav span { display:none }
   .bottom-nav button { padding:11px 14px }
   .ai-strip { grid-template-columns:auto 1fr }
@@ -107,7 +150,9 @@ main { position:relative; max-width:1380px; margin:0 auto; padding:54px 38px }
 @media(max-width:620px) {
   main { padding:28px 14px }
   .dashboard-grid { grid-template-columns:1fr }
-  .glass-card,.room-card,.energy-card,.climate-card,.security-card { grid-column:1 }
+  .glass-card,.room-card,.energy-card,.energy-flow-card,.climate-card,.security-card { grid-column:1 }
+  .energy-flow-card { min-height:400px; padding:18px }
+  .price-chip span { display:none }
   .top-status .pill { display:none }
   .glass-card { min-height:190px }
   .hero-number { font-size:43px }

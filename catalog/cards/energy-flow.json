@@ -1,0 +1,51 @@
+{
+  "id": "energy-flow",
+  "version": "0.1.0",
+  "displayName": "Energy flow",
+  "description": "Animated live flow between solar, grid, battery, home and EV, with self-sufficiency and electricity price.",
+  "aiSummary": "Use when the home has a grid meter (HAN/P1) or solar production; nodes without a binding are hidden, so bind only what exists.",
+  "sizes": ["wide", "lg"],
+  "capabilities": [
+    { "kind": "grid_power" },
+    { "kind": "solar_power" },
+    { "kind": "battery_power" },
+    { "kind": "battery_level" },
+    { "kind": "ev_power" },
+    { "kind": "power" },
+    { "kind": "energy" },
+    { "kind": "electricity_price" }
+  ],
+  "props": {
+    "title": {
+      "type": "string",
+      "description": "Card title",
+      "default": "Energy flow"
+    },
+    "evName": {
+      "type": "string",
+      "description": "Label for the EV/heavy-load node, e.g. 'Car' or 'Heat pump'",
+      "default": "EV"
+    },
+    "invertGrid": {
+      "type": "boolean",
+      "description": "Set true when the grid sensor reports export as positive (default: positive = import)",
+      "default": false
+    },
+    "invertBattery": {
+      "type": "boolean",
+      "description": "Set true when the battery sensor reports charging as positive (default: positive = discharging)",
+      "default": false
+    },
+    "maxPowerKw": {
+      "type": "number",
+      "description": "Power at which the flow animation reaches full speed",
+      "default": 8
+    },
+    "currency": {
+      "type": "string",
+      "description": "Price unit shown next to the electricity price",
+      "default": "kr/kWh"
+    }
+  },
+  "actions": []
+}

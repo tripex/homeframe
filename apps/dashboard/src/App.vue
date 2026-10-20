@@ -3,7 +3,8 @@ import { Settings2, Sparkles, Wifi, WifiOff } from "lucide-vue-next";
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import ApplianceCard from "./components/cards/ApplianceCard.vue";
 import ClimateCard from "./components/cards/ClimateCard.vue";
-import EnergyCard from "./components/cards/EnergyCard.vue";
+import EnergyFlowCard from "./components/cards/EnergyFlowCard.vue";
+import { demoEnergyAt } from "./demo/demoHome";
 import RoomCard from "./components/cards/RoomCard.vue";
 import SecurityCard from "./components/cards/SecurityCard.vue";
 import BottomNav from "./components/layout/BottomNav.vue";
@@ -22,7 +23,7 @@ const {
   connect,
   error,
 } = useHomeAssistant();
-const { rooms, powerWatts, energyTodayKwh, climateZones } = useDashboardData(
+const { rooms, energyTodayKwh, climateZones } = useDashboardData(
   status,
   states,
   semanticHome,
@@ -36,6 +37,8 @@ const {
 const { lastError: actionError, loadStatus: loadActionStatus } = useDashboardActions();
 
 const now = ref(new Date());
+const demoEnergy = ref(demoEnergyAt(Date.now()));
+let demoEnergyTimer: ReturnType<typeof setInterval> | undefined;
 const showConnectionModal = ref(false);
 let clockTimer: ReturnType<typeof setInterval> | undefined;
 
@@ -71,6 +74,10 @@ onMounted(async () => {
     now.value = new Date();
   }, 30_000);
 
+  demoEnergyTimer = setInterval(() => {
+    demoEnergy.value = demoEnergyAt(Date.now());
+  }, 1500);
+
   await loadManifest();
   await loadActionStatus();
 
@@ -84,6 +91,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   if (clockTimer) clearInterval(clockTimer);
+  if (demoEnergyTimer) clearInterval(demoEnergyTimer);
 });
 </script>
 
@@ -143,7 +151,15 @@ onUnmounted(() => {
 
       <section v-else class="dashboard-grid">
         <RoomCard v-for="room in rooms" :key="room.name" v-bind="room" />
-        <EnergyCard :watts="powerWatts ?? 1420" :today-kwh="energyTodayKwh ?? 9.8" />
+        <EnergyFlowCard
+          v-bind="demoEnergy"
+          :today-kwh="energyTodayKwh ?? demoEnergy.todayKwh"
+          ev-name="Car"
+          has-solar
+          has-grid
+          has-battery
+          has-ev
+        />
         <ClimateCard v-if="climateZones.length" :zones="climateZones" />
         <ApplianceCard kind="washer" title="Washing machine" state="38 min remaining" detail="Reference surface" :progress="64" />
         <ApplianceCard kind="vacuum" title="Robot vacuum" state="Docked" detail="Reference surface" />

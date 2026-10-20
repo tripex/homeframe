@@ -170,3 +170,43 @@ test("diagnostic entity_category lowers the score", () => {
   const diagnostic = findCapability(home, "sensor.diagnostic_temp");
   assert.ok(diagnostic.score < plain.score);
 });
+
+test("power sensors are split into energy-flow roles by name", () => {
+  const power = { device_class: "power", unit_of_measurement: "W" };
+  const home = discoverHome(
+    buildSnapshot({
+      entities: [
+        { entity_id: "sensor.solaredge_ac_power", attributes: power },
+        { entity_id: "sensor.p1_meter_active_power", attributes: power },
+        { entity_id: "sensor.home_battery_power", attributes: power },
+        { entity_id: "sensor.easee_power", attributes: power },
+        { entity_id: "sensor.house_consumption", attributes: power },
+      ],
+    }),
+  );
+  assert.equal(findCapability(home, "sensor.solaredge_ac_power").kind, "solar_power");
+  assert.equal(findCapability(home, "sensor.p1_meter_active_power").kind, "grid_power");
+  assert.equal(findCapability(home, "sensor.home_battery_power").kind, "battery_power");
+  assert.equal(findCapability(home, "sensor.easee_power").kind, "ev_power");
+  assert.equal(findCapability(home, "sensor.house_consumption").kind, "power");
+});
+
+test("spot price sensors in currency per kWh become electricity_price", () => {
+  const home = discoverHome(
+    buildSnapshot({
+      entities: [
+        {
+          entity_id: "sensor.energi_data_service",
+          state: "1.42",
+          attributes: { unit_of_measurement: "kr/kWh" },
+        },
+        {
+          entity_id: "sensor.home_energy_today",
+          attributes: { device_class: "energy", unit_of_measurement: "kWh" },
+        },
+      ],
+    }),
+  );
+  assert.equal(findCapability(home, "sensor.energi_data_service").kind, "electricity_price");
+  assert.equal(findCapability(home, "sensor.home_energy_today").kind, "energy");
+});

@@ -96,12 +96,14 @@ function bindingsFrom(
 function cardWidth(card: string, columns: number): number {
   if (columns <= 4) return columns;
   if (card === "climate") return columns;
+  if (card === "energy-flow") return columns <= 8 ? columns : 6;
   if (columns <= 8) return Math.min(4, columns);
   if (card === "room") return 4;
   return 4;
 }
 
-function cardHeight(card: string): number {
+function cardHeight(card: string, columns: number): number {
+  if (card === "energy-flow") return columns <= 4 ? 7 : 6;
   if (card === "climate") return 3;
   return 3;
 }
@@ -114,7 +116,7 @@ export function autoLayout(cards: DashboardCard[], columns: number): DashboardCa
 
   return cards.map((card) => {
     const w = Math.min(cardWidth(card.card, columns), columns);
-    const h = cardHeight(card.card);
+    const h = cardHeight(card.card, columns);
 
     if (x + w > columns) {
       x = 0;
@@ -169,8 +171,27 @@ function globalCards(home: HomeSnapshot): DashboardCard[] {
   const global = home.capabilities ?? {};
   const cards: DashboardCard[] = [];
 
+  // A home with a grid meter or solar production gets the live energy-flow
+  // card; a plain whole-home power sensor keeps the compact energy card.
+  const flowBindings = bindingsFrom(global, [
+    "solar_power",
+    "grid_power",
+    "battery_power",
+    "battery_level",
+    "ev_power",
+    "power",
+    "energy",
+    "electricity_price",
+  ]);
   const energyBindings = bindingsFrom(global, ["power", "energy"]);
-  if (energyBindings.power) {
+  if (flowBindings.solar_power || flowBindings.grid_power) {
+    cards.push({
+      instanceId: "energy-flow",
+      card: "energy-flow",
+      size: "wide",
+      bindings: flowBindings,
+    });
+  } else if (energyBindings.power) {
     cards.push({
       instanceId: "energy-overview",
       card: "energy",

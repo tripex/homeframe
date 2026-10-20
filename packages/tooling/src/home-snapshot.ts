@@ -19,6 +19,12 @@ import type { CapabilityMap, HomeAreaSnapshot, HomeSnapshot } from "./planner.js
 const HOME_LEVEL_KINDS: readonly CapabilityKind[] = [
   "power",
   "energy",
+  "solar_power",
+  "grid_power",
+  "battery_power",
+  "battery_level",
+  "ev_power",
+  "electricity_price",
   "washer",
   "dryer",
   "vacuum",
