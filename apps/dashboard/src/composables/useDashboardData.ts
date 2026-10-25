@@ -76,14 +76,6 @@ export function useDashboardData(
     return numericState(states.value, power?.entityId);
   });
 
-  const energyTodayKwh = computed(() => {
-    const energy = allCapabilities(semanticHome.value).find(
-      (capability) => capability.kind === "energy",
-    );
-
-    return numericState(states.value, energy?.entityId);
-  });
-
   const climateZones = computed(() => {
     if (status.value !== "connected") return demoClimateZones;
 
@@ -116,7 +108,6 @@ export function useDashboardData(
   return {
     rooms,
     powerWatts,
-    energyTodayKwh,
     climateZones,
   };
 }

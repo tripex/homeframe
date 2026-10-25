@@ -5,6 +5,7 @@ import {
   type HassState,
   type SemanticHome,
   type ServiceCall,
+  type StatisticPoint,
 } from "@homeframe/core";
 
 export type RuntimeHomeAssistantStatus =
@@ -86,6 +87,20 @@ export class RuntimeHomeAssistant {
       throw new Error(`Home Assistant is not connected (status: ${this.status})`);
     }
     return this.client.callService(call);
+  }
+
+  /** Read recorder statistics. Throws when there is no live connection. */
+  async statistics(request: {
+    statisticIds: string[];
+    start: Date;
+    end?: Date;
+    period: "5minute" | "hour" | "month";
+    types: Array<"change" | "mean">;
+  }): Promise<Record<string, StatisticPoint[]>> {
+    if (!this.client || this.status !== "connected") {
+      throw new Error(`Home Assistant is not connected (status: ${this.status})`);
+    }
+    return this.client.getStatistics(request);
   }
 
   attachEvents(response: ServerResponse): void {

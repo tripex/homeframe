@@ -20,6 +20,16 @@ function normalized(value: unknown): string {
 }
 
 /**
+ * True for sensors whose unit is a price per kWh, e.g. "DKK/kWh", "€/kWh" or
+ * "øre/kWh". The unit is the only reliable signal: price integrations do not
+ * share a device class.
+ */
+function isPricePerKwh(state: HassState): boolean {
+  const unit = stringAttribute(state.attributes.unit_of_measurement)?.trim() ?? "";
+  return /^[^\d\s/]{1,6}\s*\/\s*kwh$/i.test(unit);
+}
+
+/**
  * Classify one entity into the semantic concept that is most useful to a dashboard.
  *
  * Home Assistant integrations vary a lot, so this is intentionally conservative.
@@ -45,6 +55,13 @@ function classifyCapability(
   if (domain === "alarm_control_panel") return "alarm";
   if (domain === "vacuum") return "vacuum";
   if (domain === "media_player") return "media";
+  if (domain === "sun") return "sun";
+  if (domain === "weather") return "weather";
+
+  // Electricity price sensors (Energi Data Service, Nord Pool, Tibber…) report
+  // a currency per kWh. Check this before the energy device class, because a
+  // price is not consumption even when an integration tags it oddly.
+  if (domain === "sensor" && isPricePerKwh(state)) return "price";
 
   if (deviceClass === "temperature") return "temperature";
   if (deviceClass === "humidity") return "humidity";

@@ -6,13 +6,16 @@ import ClimateCard from "./components/cards/ClimateCard.vue";
 import EnergyCard from "./components/cards/EnergyCard.vue";
 import RoomCard from "./components/cards/RoomCard.vue";
 import SecurityCard from "./components/cards/SecurityCard.vue";
+import AtmosphereLayer from "./components/atmosphere/AtmosphereLayer.vue";
 import BottomNav from "./components/layout/BottomNav.vue";
 import ManifestCardRenderer from "./components/ManifestCardRenderer.vue";
 import ConnectionModal from "./components/settings/ConnectionModal.vue";
+import { useAtmosphere } from "./composables/useAtmosphere";
 import { useDashboardActions } from "./composables/useDashboardActions";
 import { useDashboardData } from "./composables/useDashboardData";
 import { useDashboardManifest } from "./composables/useDashboardManifest";
 import { useHomeAssistant } from "./composables/useHomeAssistant";
+import { demoEnergyHistory } from "./demo/demoEnergy";
 
 const {
   status,
@@ -22,7 +25,7 @@ const {
   connect,
   error,
 } = useHomeAssistant();
-const { rooms, powerWatts, energyTodayKwh, climateZones } = useDashboardData(
+const { rooms, powerWatts, climateZones } = useDashboardData(
   status,
   states,
   semanticHome,
@@ -34,8 +37,39 @@ const {
   load: loadManifest,
 } = useDashboardManifest();
 const { lastError: actionError, loadStatus: loadActionStatus } = useDashboardActions();
+const { atmosphere, mode: atmosphereMode } = useAtmosphere(manifest, states, semanticHome);
+
+const CONDITION_LABELS: Record<string, string> = {
+  "clear-night": "Clear",
+  cloudy: "Cloudy",
+  exceptional: "Unusual weather",
+  fog: "Fog",
+  hail: "Hail",
+  lightning: "Thunder",
+  "lightning-rainy": "Thunderstorm",
+  partlycloudy: "Partly cloudy",
+  pouring: "Heavy rain",
+  rainy: "Rain",
+  snowy: "Snow",
+  "snowy-rainy": "Sleet",
+  sunny: "Sunny",
+  windy: "Windy",
+  "windy-variant": "Windy",
+};
+
+const weatherNow = computed(() => {
+  const { temperature, condition } = atmosphere.value;
+  if (temperature === undefined && !condition) return undefined;
+  return {
+    temperature: temperature === undefined ? undefined : `${Math.round(temperature)}°`,
+    condition: condition ? CONDITION_LABELS[condition] ?? condition : undefined,
+  };
+});
 
 const now = ref(new Date());
+// The reference view shows a full energy day so the card can be judged
+// without Home Assistant; manifests always use real runtime history.
+const demoEnergy = demoEnergyHistory();
 const showConnectionModal = ref(false);
 let clockTimer: ReturnType<typeof setInterval> | undefined;
 
@@ -89,8 +123,7 @@ onUnmounted(() => {
 
 <template>
   <div class="app-shell">
-    <div class="ambient ambient-a" />
-    <div class="ambient ambient-b" />
+    <AtmosphereLayer :atmosphere="atmosphere" :mode="atmosphereMode" />
 
     <main>
       <header class="topbar">
@@ -106,6 +139,11 @@ onUnmounted(() => {
             {{ discoveryLabel }}
             <Settings2 :size="13" />
           </button>
+
+          <span v-if="weatherNow" class="weather-now">
+            <strong v-if="weatherNow.temperature">{{ weatherNow.temperature }}</strong>
+            <span v-if="weatherNow.condition">{{ weatherNow.condition }}</span>
+          </span>
 
           <span class="clock">
             {{ now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }}
@@ -143,7 +181,11 @@ onUnmounted(() => {
 
       <section v-else class="dashboard-grid">
         <RoomCard v-for="room in rooms" :key="room.name" v-bind="room" />
-        <EnergyCard :watts="powerWatts ?? 1420" :today-kwh="energyTodayKwh ?? 9.8" />
+        <EnergyCard
+          :watts="powerWatts ?? 1420"
+          :summary="status === 'connected' ? undefined : demoEnergy.summary"
+          :currency="demoEnergy.currency"
+        />
         <ClimateCard v-if="climateZones.length" :zones="climateZones" />
         <ApplianceCard kind="washer" title="Washing machine" state="38 min remaining" detail="Reference surface" :progress="64" />
         <ApplianceCard kind="vacuum" title="Robot vacuum" state="Docked" detail="Reference surface" />

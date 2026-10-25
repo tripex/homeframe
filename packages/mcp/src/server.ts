@@ -19,7 +19,9 @@ import {
   removeDashboard,
   saveDashboard,
   setBinding,
+  setAtmosphere,
   setCardLayout,
+  setCardProp,
   validateDashboard,
 } from "@homeframe/tooling";
 
@@ -263,6 +265,38 @@ serveStdio(() => {
     },
     async ({ dashboardId, instanceId, layout: cardLayout }) =>
       text(await setCardLayout(dashboardId, instanceId, cardLayout)),
+  );
+
+  server.registerTool(
+    "set_card_prop",
+    {
+      description:
+        "Set or clear (value: null) one prop on a card instance, e.g. the energy card's `tariff` (price per kWh), `surcharge` or `currency`. Props are checked against the card contract; read it with get_card.",
+      inputSchema: z.object({
+        dashboardId: z.string().min(1),
+        instanceId: z.string().min(1),
+        name: z.string().min(1),
+        value: z.union([z.string(), z.number(), z.boolean(), z.null()]),
+      }),
+    },
+    async ({ dashboardId, instanceId, name, value }) =>
+      text(await setCardProp(dashboardId, instanceId, name, value)),
+  );
+
+  server.registerTool(
+    "set_atmosphere",
+    {
+      description:
+        "Configure the dashboard's ambient sky. mode: live (follows the sun, draws rain/snow/fog), calm (sky colors only) or off. Bind `sun` (usually sun.sun) and `weather` (a weather.* entity) from Home Assistant; pass null to clear one. Purely visual, never changes Home Assistant.",
+      inputSchema: z.object({
+        dashboardId: z.string().min(1),
+        mode: z.enum(["live", "calm", "off"]).optional(),
+        sun: z.string().regex(/^sun\.[a-z0-9_]+$/).nullable().optional(),
+        weather: z.string().regex(/^weather\.[a-z0-9_]+$/).nullable().optional(),
+      }),
+    },
+    async ({ dashboardId, mode, sun, weather }) =>
+      text(await setAtmosphere(dashboardId, { mode, sun, weather })),
   );
 
   server.registerTool(

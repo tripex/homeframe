@@ -33,6 +33,9 @@
     "energy": ["sensor.home_energy_today"],
     "washer": ["sensor.washer_state"],
     "vacuum": ["vacuum.robot"],
-    "lock": ["lock.front_door"]
+    "lock": ["lock.front_door"],
+    "price": ["sensor.electricity_price"],
+    "sun": ["sun.sun"],
+    "weather": ["weather.home"]
   }
 }

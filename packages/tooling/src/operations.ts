@@ -1,5 +1,6 @@
 import type {
   CardLayout,
+  DashboardAtmosphere,
   DashboardCard,
   DashboardManifest,
   DeviceProfileId,
@@ -211,6 +212,68 @@ export async function setCardLayout(
   options: EngineOptions = {},
 ): Promise<DashboardManifest> {
   return updateCard(dashboardId, instanceId, { layout }, options);
+}
+
+/**
+ * Set or clear one prop on a card instance, checked against the card's
+ * catalog contract so an agent cannot invent props or pass the wrong type.
+ */
+export async function setCardProp(
+  dashboardId: string,
+  instanceId: string,
+  name: string,
+  value: string | number | boolean | null,
+  options: EngineOptions = {},
+): Promise<DashboardManifest> {
+  const dashboard = await requireDashboard(dashboardId, options);
+  const card = dashboard.cards.find((candidate) => candidate.instanceId === instanceId);
+  if (!card) throw new Error(`Unknown card instance: ${instanceId}`);
+
+  const contract = await getCard(card.card, options.frameworkRoot);
+  const declared = contract?.props?.[name];
+  if (!declared) {
+    const known = Object.keys(contract?.props ?? {}).join(", ") || "none";
+    throw new Error(`Card ${card.card} has no prop "${name}" (props: ${known})`);
+  }
+  if (value !== null && typeof value !== declared.type) {
+    throw new Error(`Prop "${name}" on ${card.card} must be a ${declared.type}`);
+  }
+
+  const props = { ...card.props };
+  if (value === null) delete props[name];
+  else props[name] = value;
+
+  return updateCard(
+    dashboardId,
+    instanceId,
+    { props: Object.keys(props).length ? props : undefined },
+    options,
+  );
+}
+
+/**
+ * Change the dashboard's ambient scene. Fields left out of `patch` keep their
+ * current value; pass `null` to clear a sun or weather binding.
+ */
+export async function setAtmosphere(
+  dashboardId: string,
+  patch: {
+    mode?: DashboardAtmosphere["mode"];
+    sun?: string | null;
+    weather?: string | null;
+  },
+  options: EngineOptions = {},
+): Promise<DashboardManifest> {
+  const dashboard = await requireDashboard(dashboardId, options);
+  const next: DashboardAtmosphere = { ...dashboard.atmosphere };
+
+  if (patch.mode !== undefined) next.mode = patch.mode;
+  for (const key of ["sun", "weather"] as const) {
+    if (patch[key] === null) delete next[key];
+    else if (patch[key] !== undefined) next[key] = patch[key] as string;
+  }
+
+  return saveDashboard({ ...dashboard, atmosphere: next }, options);
 }
 
 export async function reflowDashboard(

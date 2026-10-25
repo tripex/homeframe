@@ -25,6 +25,9 @@ const HOME_LEVEL_KINDS: readonly CapabilityKind[] = [
   "lock",
   "alarm",
   "garage",
+  "price",
+  "sun",
+  "weather",
 ];
 
 /** Add one capability's entity id to a capability map, deduped and in order. */

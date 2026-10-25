@@ -1,3 +1,4 @@
+import { parseStatisticPoint, type StatisticPoint } from "./energy.js";
 import type { HassState, RegistrySnapshot, ServiceCall } from "./types.js";
 
 type PendingRequest = {
@@ -194,6 +195,38 @@ export class HomeAssistantClient {
     return () => {
       this.stateListeners.delete(listener);
     };
+  }
+
+  /**
+   * Read long-term statistics from the recorder, the same data Home
+   * Assistant's own energy dashboard uses. Returns rows per statistic id,
+   * normalized to millisecond timestamps.
+   */
+  async getStatistics(request: {
+    statisticIds: string[];
+    start: Date;
+    end?: Date;
+    period: "5minute" | "hour" | "day" | "week" | "month";
+    types: Array<"change" | "mean" | "sum" | "state">;
+  }): Promise<Record<string, StatisticPoint[]>> {
+    const raw = await this.callWebSocket<Record<string, unknown[]>>({
+      type: "recorder/statistics_during_period",
+      start_time: request.start.toISOString(),
+      ...(request.end ? { end_time: request.end.toISOString() } : {}),
+      statistic_ids: request.statisticIds,
+      period: request.period,
+      types: request.types,
+    });
+
+    return Object.fromEntries(
+      Object.entries(raw ?? {}).map(([id, rows]) => [
+        id,
+        (Array.isArray(rows) ? rows : []).flatMap((row) => {
+          const point = parseStatisticPoint(row);
+          return point ? [point] : [];
+        }),
+      ]),
+    );
   }
 
   callService(call: ServiceCall): Promise<unknown> {
