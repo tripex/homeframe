@@ -96,6 +96,7 @@ export class RuntimeHomeAssistant {
     end?: Date;
     period: "5minute" | "hour" | "month";
     types: Array<"change" | "mean">;
+    units?: Record<string, string>;
   }): Promise<Record<string, StatisticPoint[]>> {
     if (!this.client || this.status !== "connected") {
       throw new Error(`Home Assistant is not connected (status: ${this.status})`);

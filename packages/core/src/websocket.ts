@@ -208,6 +208,11 @@ export class HomeAssistantClient {
     end?: Date;
     period: "5minute" | "hour" | "day" | "week" | "month";
     types: Array<"change" | "mean" | "sum" | "state">;
+    /**
+     * Units Home Assistant converts the statistics to, e.g.
+     * `{ energy: "kWh", power: "W" }`, so a Wh or MWh meter is never read as kWh.
+     */
+    units?: Record<string, string>;
   }): Promise<Record<string, StatisticPoint[]>> {
     const raw = await this.callWebSocket<Record<string, unknown[]>>({
       type: "recorder/statistics_during_period",
@@ -216,6 +221,7 @@ export class HomeAssistantClient {
       statistic_ids: request.statisticIds,
       period: request.period,
       types: request.types,
+      ...(request.units ? { units: request.units } : {}),
     });
 
     return Object.fromEntries(

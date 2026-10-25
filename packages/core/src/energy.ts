@@ -225,11 +225,15 @@ function bucketKwh(point: StatisticPoint, source: EnergySummaryInput["source"]):
   return source === "mean-watts" ? point.mean / 1000 : point.mean;
 }
 
-/** Local start of the hour containing `time`. */
+/**
+ * Local start of the hour containing `time`. Computed from the UTC offset in
+ * force at that instant rather than with setMinutes(), which would map the
+ * second occurrence of a repeated autumn DST hour onto the first one.
+ */
 function hourStart(time: number): number {
-  const date = new Date(time);
-  date.setMinutes(0, 0, 0);
-  return date.getTime();
+  const offset = new Date(time).getTimezoneOffset() * 60_000;
+  const local = time - offset;
+  return time - (((local % HOUR) + HOUR) % HOUR);
 }
 
 function startOfDay(date: Date, offsetDays = 0): Date {
@@ -323,7 +327,12 @@ export function summarizeEnergy(input: EnergySummaryInput): EnergySummary {
     [...kwhByHour].filter(([start]) => start >= yesterdayStart && start < todayStart).map(([, kwh]) => kwh),
   );
   const todayKwh = sum(hours.map((hour) => hour.kwh));
-  const todayCost = sum(hours.map((hour) => hour.cost));
+  // A day total is only honest when every hour with consumption has a price;
+  // otherwise the sum would quietly leave out the unpriced hours.
+  const consumed = hours.filter((hour) => hour.kwh !== undefined);
+  const todayCost = consumed.every((hour) => hour.cost !== undefined)
+    ? sum(consumed.map((hour) => hour.cost))
+    : undefined;
 
   const monthStart = new Date(input.now.getFullYear(), input.now.getMonth(), 1).getTime();
   const yearStart = new Date(input.now.getFullYear(), 0, 1).getTime();

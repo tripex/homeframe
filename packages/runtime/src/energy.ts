@@ -30,6 +30,7 @@ export type StatisticsSource = {
     end?: Date;
     period: "5minute" | "hour" | "month";
     types: Array<"change" | "mean">;
+    units?: Record<string, string>;
   }): Promise<Record<string, StatisticPoint[]>>;
 };
 
@@ -48,6 +49,13 @@ type CachedStatistics = {
 const STATISTICS_TTL_MS = 60_000;
 const cache = new Map<string, CachedStatistics>();
 
+/**
+ * Home Assistant converts statistics to these units on request, so a meter
+ * recording Wh or MWh, or a power sensor in kW, arrives in the units
+ * summarizeEnergy expects.
+ */
+const STATISTIC_UNITS = { energy: "kWh", power: "W" };
+
 function firstId(binding: EntityBinding | undefined): string | undefined {
   if (!binding) return undefined;
   return Array.isArray(binding) ? binding[0] : binding;
@@ -64,7 +72,6 @@ function numberProp(card: DashboardCard, name: string): number | undefined {
  */
 function consumptionSource(
   card: DashboardCard,
-  states: Map<string, HassState>,
 ): { statisticId: string; source: EnergySummaryInput["source"] } | undefined {
   const energy = firstId(card.bindings?.energy);
   if (energy) return { statisticId: energy, source: "change" };
@@ -72,11 +79,8 @@ function consumptionSource(
   const power = firstId(card.bindings?.power);
   if (!power) return undefined;
 
-  const unit = states.get(power)?.attributes.unit_of_measurement;
-  return {
-    statisticId: power,
-    source: typeof unit === "string" && unit.toLowerCase() === "kw" ? "mean-kilowatts" : "mean-watts",
-  };
+  // Statistics are requested in W (see STATISTIC_UNITS), whatever the sensor reports.
+  return { statisticId: power, source: "mean-watts" };
 }
 
 async function loadStatistics(
@@ -96,12 +100,12 @@ async function loadStatistics(
   const yearStart = new Date(now.getFullYear(), 0, 1);
 
   const [hourly, recent, monthly] = await Promise.all([
-    ha.statistics({ statisticIds: [statisticId], start: yesterday, period: "hour", types }),
-    ha.statistics({ statisticIds: [statisticId], start: currentHour, period: "5minute", types }),
+    ha.statistics({ statisticIds: [statisticId], start: yesterday, period: "hour", types, units: STATISTIC_UNITS }),
+    ha.statistics({ statisticIds: [statisticId], start: currentHour, period: "5minute", types, units: STATISTIC_UNITS }),
     // Monthly power means cannot be turned into energy without knowing how
     // many hours each month had data for, so only energy sensors get them.
     source === "change"
-      ? ha.statistics({ statisticIds: [statisticId], start: yearStart, period: "month", types })
+      ? ha.statistics({ statisticIds: [statisticId], start: yearStart, period: "month", types, units: STATISTIC_UNITS })
       : Promise.resolve({} as Record<string, StatisticPoint[]>),
   ]);
 
@@ -140,7 +144,7 @@ export async function energyForCard(
   }
 
   const states = ha.currentStates();
-  const consumption = consumptionSource(card, states);
+  const consumption = consumptionSource(card);
   if (!consumption) {
     throw new EnergyRequestError(
       `Card ${card.instanceId} binds neither energy nor power`,

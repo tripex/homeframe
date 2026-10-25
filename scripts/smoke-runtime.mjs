@@ -293,7 +293,8 @@ try {
   assert.equal(energy.summary.pricing, "dynamic");
   assert.ok(energy.summary.hours.length >= 23);
   assert.ok(energy.summary.currentPrice > 0);
-  assert.ok(energy.summary.yesterdayKwh > 0);
+  // The fake meter records Wh; a sane daily total proves kWh was requested.
+  assert.ok(energy.summary.yesterdayKwh > 0 && energy.summary.yesterdayKwh < 100);
   assert.ok(energy.summary.monthKwh > 0);
 
   const notEnergy = livePlan.cards.find((card) => card.card === "room");

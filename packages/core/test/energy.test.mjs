@@ -187,3 +187,20 @@ test("currencies are inferred from price units without guessing ambiguous ones",
   assert.deepEqual(currencyFromPriceUnit("kr/kWh"), { label: "kr" });
   assert.deepEqual(currencyFromPriceUnit(undefined), {});
 });
+
+test("a day cost is withheld when a consumed hour has no price", () => {
+  const raw_today = [{ hour: new Date(today + HOUR).toISOString(), price: 2 }];
+  const summary = summarizeEnergy({
+    now,
+    source: "change",
+    hourly: [
+      { start: today, change: 10, mean: null },
+      { start: today + HOUR, change: 10, mean: null },
+    ],
+    prices: parsePriceSeries(priceSensor({ unit_of_measurement: "DKK/kWh", raw_today })),
+  });
+
+  assert.equal(summary.hours[1].cost, 20);
+  assert.equal(summary.hours[0].cost, undefined);
+  assert.equal(summary.todayCost, undefined);
+});

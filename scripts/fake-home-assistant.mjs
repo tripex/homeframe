@@ -130,7 +130,7 @@ function buildHome(now) {
     entity("sensor.bedroom_humidity", 51, { device_class: "humidity", unit_of_measurement: "%", friendly_name: "Bedroom humidity" }, { area_id: "bedroom" }),
     entity("light.bedroom", "off", { friendly_name: "Bedroom" }, { area_id: "bedroom" }),
     entity("sensor.home_power", 1460 + Math.round(noise(now.getMinutes()) * 300), { device_class: "power", unit_of_measurement: "W", state_class: "measurement", friendly_name: "Home power" }),
-    entity("sensor.home_energy", 18452.3, { device_class: "energy", unit_of_measurement: "kWh", state_class: "total_increasing", friendly_name: "Home energy" }),
+    entity("sensor.home_energy", 18452300, { device_class: "energy", unit_of_measurement: "Wh", state_class: "total_increasing", friendly_name: "Home energy" }),
     entity("sensor.energi_data_service", currentPrice, { unit_of_measurement: "DKK/kWh", friendly_name: "Energi Data Service", current_price: currentPrice, raw_today, raw_tomorrow: [] }),
     entity("sensor.washing_machine_state", "Rinsing", { friendly_name: "Washing machine" }, { area_id: "utility" }),
     entity("vacuum.robot", "docked", { friendly_name: "Robot vacuum" }),
@@ -153,7 +153,13 @@ function buildHome(now) {
 }
 
 /** Hourly (or 5-minute / monthly) statistics rows for the energy meter. */
-function statistics({ start_time, end_time, statistic_ids, period, types }, now) {
+/**
+ * Like Home Assistant, the meter records in its own unit (Wh here) and only
+ * converts when the caller asks for `units: { energy: "kWh" }`. That keeps the
+ * smoke test honest about Homeframe requesting kWh.
+ */
+function statistics({ start_time, end_time, statistic_ids, period, types, units }, now) {
+  const energyScale = units?.energy === "kWh" ? 1 : 1000;
   const start = Date.parse(start_time);
   const end = end_time ? Date.parse(end_time) : now.getTime();
   const result = {};
@@ -166,7 +172,7 @@ function statistics({ start_time, end_time, statistic_ids, period, types }, now)
       while (cursor.getTime() < end) {
         const monthStart = cursor.getTime();
         const daysSoFar = cursor.getMonth() === now.getMonth() ? now.getDate() : 30;
-        rows.push({ start: monthStart, end: monthStart + 30 * 24 * HOUR, change: Number((daysSoFar * 11.4).toFixed(2)) });
+        rows.push({ start: monthStart, end: monthStart + 30 * 24 * HOUR, change: Number((daysSoFar * 11.4 * energyScale).toFixed(2)) });
         cursor.setMonth(cursor.getMonth() + 1);
       }
     } else {
@@ -176,7 +182,7 @@ function statistics({ start_time, end_time, statistic_ids, period, types }, now)
         const hourly = householdKwh(bucket - (bucket % HOUR));
         const kwh = period === "5minute" ? hourly / 12 : hourly;
         const row = { start: bucket, end: bucket + step };
-        if (types.includes("change")) row.change = Number(kwh.toFixed(4));
+        if (types.includes("change")) row.change = Number((kwh * energyScale).toFixed(4));
         if (types.includes("mean")) row.mean = Number((kwh * 1000).toFixed(1));
         rows.push(row);
       }
