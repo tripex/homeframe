@@ -34,8 +34,14 @@ export const isDemoBuild = import.meta.env.VITE_HOMEFRAME_DEMO === "true";
  * Shared so the sky switcher and the sky read the same preview. Changes are
  * mirrored into the URL, so any sky in the demo can be linked to.
  */
+// The demo has no weather entity, so without a ?weather choice it shows a
+// partly cloudy sample day. A plain spread would let the URL's undefined
+// condition overwrite that default.
+const initialPreview = previewFromUrl();
 const preview = ref<SkyPreview>(
-  isDemoBuild ? { condition: "partlycloudy", ...previewFromUrl() } : previewFromUrl(),
+  isDemoBuild
+    ? { ...initialPreview, condition: initialPreview.condition ?? "partlycloudy" }
+    : initialPreview,
 );
 
 export function setSkyPreview(next: SkyPreview): void {
