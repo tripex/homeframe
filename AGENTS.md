@@ -18,7 +18,8 @@ Preferred flow:
 3. call `plan_dashboards`
 4. review the proposed device-specific manifests
 5. call `create_planned_dashboards`
-6. refine with `add_card`, `remove_card`, `set_binding`, `set_card_layout` and `reflow_dashboard`
+6. refine with `add_card`, `remove_card`, `set_binding`, `set_card_layout`, `set_card_prop`,
+   `set_atmosphere` and `reflow_dashboard`
 7. verify with `get_dashboard`
 
 Read `docs/HERMES.md` for the full product workflow.

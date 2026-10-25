@@ -2,6 +2,10 @@
 
 **A beautiful, adaptive and AI-first dashboard framework for Home Assistant.**
 
+![A Homeframe wall-tablet dashboard at dusk: rooms, live energy cost and floor heating over a sky that follows the real sun and weather](docs/images/dashboard-dusk.webp)
+
+**[Try the live demo](https://tripex.github.io/homeframe/)** — a sample home in your browser. Use "Change sky" to see dawn, night, rain, snow and fog.
+
 Homeframe is an open-source frontend and dashboard framework for Home Assistant with a calm, glass-inspired visual language. Home Assistant remains the automation backend and source of truth; Homeframe turns raw entities into reusable semantic capabilities and declarative dashboards that humans and AI agents can safely configure.
 
 > **Project status:** `v0.2` development preview. Homeframe can now persist, plan and render multiple device-specific dashboards and exposes write-capable CLI/MCP operations. It is ready for real installation testing, but production authentication, packaging and broader device/card coverage are still in progress.
@@ -80,6 +84,8 @@ Built-in planning profiles:
 | `custom` | custom display | user-defined | 12 columns by default |
 
 The same Home Assistant entities can be reused across all of them while cards, priority and layout differ per screen.
+
+![The same home on a 10-inch tablet at a snowy dawn, a Nest Hub on a clear night and a phone in the rain](docs/images/screens.webp)
 
 ## AI-first architecture
 
@@ -279,6 +285,8 @@ Every planned dashboard gets an `atmosphere` block bound to the home's sun and w
 ```
 
 `live` follows the sun and draws weather, `calm` keeps only the sky colors, `off` is a fixed background. Without a sun entity the sky falls back to the local clock. Preview any sky with `?phase=dusk&weather=rainy` (phases: `night`, `dawn`, `day`, `dusk`; weather: any Home Assistant condition).
+
+`npm run build:demo` builds the static demo in `apps/dashboard/dist-demo` (served from `/homeframe/`; set `HOMEFRAME_BASE` for another path). Add `?preview` to any dashboard URL to get the same sky switcher on a real installation.
 
 The energy card reads hourly statistics through `GET /api/energy`, which the runtime resolves from the card's own bindings. Bind an electricity price sensor to `price` for hour-by-hour costs, and use props for what the sensor leaves out:
 
