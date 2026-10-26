@@ -48,6 +48,9 @@ Use the extra width for a broad overview and diagnostics, but keep the calm Home
 
 ## Binding rules
 
+- Bind `sun.sun` and the home's main `weather.*` entity in the dashboard `atmosphere`. The planner does this when they are in the HomeSnapshot.
+- Bind an electricity price sensor (unit like `DKK/kWh`) to the energy card's `price`. Set `tariff`/`surcharge` only from what the user tells you.
+
 - Concrete Home Assistant entity IDs belong in manifest bindings.
 - Do not put entity IDs in reusable framework source.
 - Prefer one high-confidence entity over several uncertain ones.

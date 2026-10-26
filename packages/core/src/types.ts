@@ -62,6 +62,9 @@ export type CapabilityKind =
   | "washer"
   | "dryer"
   | "media"
+  | "sun"
+  | "weather"
+  | "price"
   | "generic";
 
 /**

@@ -10,6 +10,16 @@
     "id": { "type": "string", "minLength": 1, "pattern": "^[a-z0-9][a-z0-9-]*$" },
     "name": { "type": "string", "minLength": 1 },
     "theme": { "type": "string" },
+    "atmosphere": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Dashboard-wide ambient scene driven by the sun and weather.",
+      "properties": {
+        "mode": { "enum": ["live", "calm", "off"] },
+        "sun": { "type": "string", "pattern": "^sun\\.[a-z0-9_]+$" },
+        "weather": { "type": "string", "pattern": "^weather\\.[a-z0-9_]+$" }
+      }
+    },
     "generatedBy": { "type": "string" },
     "createdAt": { "type": "string", "format": "date-time" },
     "updatedAt": { "type": "string", "format": "date-time" },

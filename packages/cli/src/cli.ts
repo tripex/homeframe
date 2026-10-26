@@ -18,7 +18,9 @@ import {
   removeDashboard,
   saveDashboard,
   setBinding,
+  setAtmosphere,
   setCardLayout,
+  setCardProp,
   validateDashboardFile,
   type HomeSnapshot,
 } from "@homeframe/tooling";
@@ -56,6 +58,13 @@ Cards and bindings
   homeframe card remove <dashboard> <instance-id>
   homeframe binding set <dashboard> <instance-id> <capability> <entity[,entity...]>
   homeframe layout set <dashboard> <instance-id> <x> <y> <w> <h>
+  homeframe prop set <dashboard> <instance-id> <name> <value>
+  homeframe prop clear <dashboard> <instance-id> <name>
+
+Atmosphere
+  homeframe atmosphere set <dashboard> <live|calm|off> [--sun <sun.entity>] [--weather <weather.entity>]
+    The ambient sky behind the cards. "live" follows the sun and draws weather,
+    "calm" keeps sky colors only, "off" is a fixed background.
 
 Home
   homeframe home snapshot [--runtime <url>] [--name <name>] [--out <file>]
@@ -192,6 +201,37 @@ async function main(): Promise<void> {
         y: Number(y),
         w: Number(w),
         h: Number(h),
+      }),
+    );
+    return;
+  }
+
+  if (group === "prop" && command === "set" && values.length >= 4) {
+    const [dashboardId, instanceId, name, raw] = values;
+    // Numbers and booleans arrive as text; the card contract decides the type,
+    // so try the natural reading first and let setCardProp reject a mismatch.
+    const value =
+      raw === "true" ? true : raw === "false" ? false : raw.trim() !== "" && Number.isFinite(Number(raw)) ? Number(raw) : raw;
+    print(await setCardProp(dashboardId, instanceId, name, value));
+    return;
+  }
+
+  if (group === "prop" && command === "clear" && values.length >= 3) {
+    const [dashboardId, instanceId, name] = values;
+    print(await setCardProp(dashboardId, instanceId, name, null));
+    return;
+  }
+
+  if (group === "atmosphere" && command === "set" && values.length >= 2) {
+    const [dashboardId, mode] = values;
+    if (!["live", "calm", "off"].includes(mode)) {
+      throw new Error(`Atmosphere mode must be live, calm or off (got ${mode})`);
+    }
+    print(
+      await setAtmosphere(dashboardId, {
+        mode: mode as "live" | "calm" | "off",
+        sun: flag(values, "sun"),
+        weather: flag(values, "weather"),
       }),
     );
     return;

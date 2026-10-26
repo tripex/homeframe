@@ -112,6 +112,7 @@ Normal dashboard work should use MCP/CLI operations. Editing Vue/TypeScript is a
 
 - Vue 3 + TypeScript dashboard renderer
 - glass-inspired default visual system
+- live atmosphere: the sky behind the cards follows `sun.sun` and draws the current weather (rain, snow, fog, storm), calm enough for an always-on wall screen and off under reduced motion
 - Home Assistant WebSocket client
 - area/device/entity/state registry loading
 - realtime state subscriptions
@@ -127,6 +128,7 @@ Normal dashboard work should use MCP/CLI operations. Editing Vue/TypeScript is a
 - runtime HTTP API for screens, with opt-in execution of `control` card actions
 - exact dashboard selection by URL or automatic profile selection
 - room, climate, energy, appliance, vacuum and security card contracts
+- energy card with today's hourly consumption from Home Assistant statistics and real costs: hour-by-hour with an electricity price sensor (Energi Data Service, Nord Pool), or a flat tariff
 - conservative security-state rendering
 - demo/reference mode without Home Assistant
 - smoke tests and GitHub Actions CI
@@ -213,6 +215,8 @@ add_card
 remove_card
 set_binding
 set_card_layout
+set_card_prop
+set_atmosphere
 reflow_dashboard
 delete_dashboard
 ```
@@ -265,6 +269,37 @@ VITE_HA_TOKEN=your-development-token
 **Do not treat `VITE_HA_TOKEN` as the production authentication model.** Anything embedded in a browser build is visible to the browser. Production authentication/session handling is still an explicit roadmap item.
 
 For AI-driven dashboard creation, Hermes should inspect the home through Home Assistant MCP and provide Homeframe with a semantic `HomeSnapshot`. Homeframe does not require one specific HA MCP implementation.
+
+## Atmosphere and energy
+
+Every planned dashboard gets an `atmosphere` block bound to the home's sun and weather entities:
+
+```json
+"atmosphere": { "mode": "live", "sun": "sun.sun", "weather": "weather.home" }
+```
+
+`live` follows the sun and draws weather, `calm` keeps only the sky colors, `off` is a fixed background. Without a sun entity the sky falls back to the local clock. Preview any sky with `?phase=dusk&weather=rainy` (phases: `night`, `dawn`, `day`, `dusk`; weather: any Home Assistant condition).
+
+The energy card reads hourly statistics through `GET /api/energy`, which the runtime resolves from the card's own bindings. Bind an electricity price sensor to `price` for hour-by-hour costs, and use props for what the sensor leaves out:
+
+```bash
+homeframe binding set my-home-tablet-10 energy-overview price sensor.energi_data_service
+homeframe prop set my-home-tablet-10 energy-overview surcharge 1.15   # grid tariff + taxes per kWh
+homeframe prop set my-home-tablet-10 energy-overview tariff 2.35      # or: one flat price per kWh
+```
+
+Costs are only shown when they can actually be computed: a dynamic price covers today, a flat tariff covers every period.
+
+### Try it without a real home
+
+`scripts/fake-home-assistant.mjs` is a scripted Home Assistant (sun, weather, a Danish price sensor, energy statistics) for demos and tests:
+
+```bash
+node scripts/fake-home-assistant.mjs &
+export HOMEFRAME_HA_URL=http://127.0.0.1:8123 HOMEFRAME_HA_TOKEN=demo
+node packages/cli/dist/cli.js dashboard plan live tablet-10 --save
+npm start
+```
 
 ## Repository structure
 
