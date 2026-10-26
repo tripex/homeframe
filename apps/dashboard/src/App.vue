@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Settings2, Sparkles, Wifi, WifiOff } from "lucide-vue-next";
+import { House, Settings2, Sparkles, Wifi, WifiOff } from "lucide-vue-next";
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import ApplianceCard from "./components/cards/ApplianceCard.vue";
 import ClimateCard from "./components/cards/ClimateCard.vue";
@@ -7,10 +7,11 @@ import EnergyCard from "./components/cards/EnergyCard.vue";
 import RoomCard from "./components/cards/RoomCard.vue";
 import SecurityCard from "./components/cards/SecurityCard.vue";
 import AtmosphereLayer from "./components/atmosphere/AtmosphereLayer.vue";
+import SkySwitcher from "./components/demo/SkySwitcher.vue";
 import BottomNav from "./components/layout/BottomNav.vue";
 import ManifestCardRenderer from "./components/ManifestCardRenderer.vue";
 import ConnectionModal from "./components/settings/ConnectionModal.vue";
-import { useAtmosphere } from "./composables/useAtmosphere";
+import { isDemoBuild, useAtmosphere } from "./composables/useAtmosphere";
 import { useDashboardActions } from "./composables/useDashboardActions";
 import { useDashboardData } from "./composables/useDashboardData";
 import { useDashboardManifest } from "./composables/useDashboardManifest";
@@ -38,6 +39,7 @@ const {
 } = useDashboardManifest();
 const { lastError: actionError, loadStatus: loadActionStatus } = useDashboardActions();
 const { atmosphere, mode: atmosphereMode } = useAtmosphere(manifest, states, semanticHome);
+const showSkySwitcher = isDemoBuild || new URLSearchParams(window.location.search).has("preview");
 
 const CONDITION_LABELS: Record<string, string> = {
   "clear-night": "Clear",
@@ -84,11 +86,12 @@ const discoveryLabel = computed(() => {
   if (status.value === "connected") return `${semanticHome.value.areas.length} areas discovered`;
   if (status.value === "connecting") return "Connecting…";
   if (status.value === "error") return "Connection needs attention";
-  return "Demo mode · ready for Home Assistant";
+  return isDemoBuild ? "Sample home" : "Demo mode · ready for Home Assistant";
 });
 
 const dashboardLabel = computed(() =>
-  manifest.value ? `${manifest.value.name} · ${manifest.value.target.profile}` : `Reference · ${selectedProfile.value}`,
+  // Planned dashboard names already end in their profile ("Home · tablet-10").
+  manifest.value ? manifest.value.name : isDemoBuild ? "Live demo" : `Reference · ${selectedProfile.value}`,
 );
 
 const gridStyle = computed(() => ({
@@ -104,6 +107,9 @@ onMounted(async () => {
   clockTimer = setInterval(() => {
     now.value = new Date();
   }, 30_000);
+
+  // The hosted demo is a static page: there is no runtime to ask.
+  if (isDemoBuild) return;
 
   await loadManifest();
   await loadActionStatus();
@@ -123,7 +129,7 @@ onUnmounted(() => {
 
 <template>
   <div class="app-shell">
-    <AtmosphereLayer :atmosphere="atmosphere" :mode="atmosphereMode" />
+    <AtmosphereLayer :atmosphere="atmosphere" :mode="atmosphereMode" :quick="showSkySwitcher" />
 
     <main>
       <header class="topbar">
@@ -135,7 +141,7 @@ onUnmounted(() => {
 
         <div class="top-status">
           <button class="pill connect-pill" type="button" @click="showConnectionModal = true">
-            <component :is="status === 'connected' ? Wifi : WifiOff" :size="14" />
+            <component :is="isDemoBuild ? House : status === 'connected' ? Wifi : WifiOff" :size="14" />
             {{ discoveryLabel }}
             <Settings2 :size="13" />
           </button>
@@ -159,7 +165,13 @@ onUnmounted(() => {
             {{ manifest.cards.length }} cards · {{ manifest.target.profile }} · {{ manifest.theme ?? "default theme" }}
           </p>
           <p v-else>
-            {{ manifestStatus === "loading" ? "Loading installation dashboard…" : "Reference view. Create a dashboard with CLI or MCP to replace it." }}
+            {{
+              isDemoBuild
+                ? "A sample home running in your browser. Install Homeframe to see your own."
+                : manifestStatus === "loading"
+                  ? "Loading installation dashboard…"
+                  : "Reference view. Create a dashboard with CLI or MCP to replace it."
+            }}
           </p>
           <p v-if="actionError" class="action-error">
             {{ actionError }}
@@ -194,6 +206,8 @@ onUnmounted(() => {
     </main>
 
     <BottomNav />
+
+    <SkySwitcher v-if="showSkySwitcher" :current-phase="atmosphere.phase" />
 
     <ConnectionModal
       v-if="showConnectionModal"

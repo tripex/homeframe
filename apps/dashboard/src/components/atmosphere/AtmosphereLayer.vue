@@ -7,6 +7,8 @@ import { WeatherCanvas } from "./weatherCanvas";
 const props = defineProps<{
   atmosphere: Atmosphere;
   mode: AtmosphereMode;
+  /** Ease between skies in about a second instead of a minute (sky previews). */
+  quick?: boolean;
 }>();
 
 type Palette = { top: string; mid: string; horizon: string; glow: string };
@@ -127,7 +129,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="atmosphere" :class="[`atmosphere-${mode}`, { 'atmosphere-settled': settled }]" :style="skyStyle" aria-hidden="true">
+  <div class="atmosphere" :class="[`atmosphere-${mode}`, { 'atmosphere-settled': settled, 'atmosphere-quick': quick }]" :style="skyStyle" aria-hidden="true">
     <div class="atmosphere-sky" />
     <div class="atmosphere-light" />
     <div v-if="showMoon" class="atmosphere-moon" />

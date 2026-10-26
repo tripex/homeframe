@@ -16,13 +16,46 @@ const PHASES: SkyPhase[] = ["night", "dawn", "day", "dusk"];
  * lightning-rainy…), so previews go through exactly the same mapping as a
  * live weather entity.
  */
-function previewFromUrl(): { phase?: SkyPhase; condition?: string } {
+export type SkyPreview = { phase?: SkyPhase; condition?: string };
+
+function previewFromUrl(): SkyPreview {
   const params = new URLSearchParams(window.location.search);
   const phase = params.get("phase") as SkyPhase | null;
   return {
     phase: phase && PHASES.includes(phase) ? phase : undefined,
     condition: params.get("weather") ?? undefined,
   };
+}
+
+/** True in the hosted demo build, which has no runtime or Home Assistant. */
+export const isDemoBuild = import.meta.env.VITE_HOMEFRAME_DEMO === "true";
+
+/**
+ * Shared so the sky switcher and the sky read the same preview. Changes are
+ * mirrored into the URL, so any sky in the demo can be linked to.
+ */
+// The demo has no weather entity, so without a ?weather choice it shows a
+// partly cloudy sample day. A plain spread would let the URL's undefined
+// condition overwrite that default.
+const initialPreview = previewFromUrl();
+const preview = ref<SkyPreview>(
+  isDemoBuild
+    ? { ...initialPreview, condition: initialPreview.condition ?? "partlycloudy" }
+    : initialPreview,
+);
+
+export function setSkyPreview(next: SkyPreview): void {
+  preview.value = next;
+  const url = new URL(window.location.href);
+  for (const [key, value] of [["phase", next.phase], ["weather", next.condition]] as const) {
+    if (value) url.searchParams.set(key, value);
+    else url.searchParams.delete(key);
+  }
+  window.history.replaceState(null, "", url);
+}
+
+export function useSkyPreview() {
+  return { preview, setSkyPreview };
 }
 
 const PREVIEW_POSITIONS: Record<SkyPhase, Pick<Atmosphere, "arcProgress" | "daylight" | "sunElevation">> = {
@@ -50,8 +83,6 @@ export function useAtmosphere(
   }, 60_000);
   onUnmounted(() => clearInterval(timer));
 
-  const preview = previewFromUrl();
-
   function discovered(kind: "sun" | "weather"): string | undefined {
     return semanticHome.value.unassigned.find((capability) => capability.kind === kind)?.entityId ??
       semanticHome.value.areas
@@ -66,11 +97,14 @@ export function useAtmosphere(
     const weatherId = manifest.value?.atmosphere?.weather ?? discovered("weather");
 
     let weather = weatherId ? states.value.get(weatherId) : undefined;
-    if (preview.condition) {
+    const condition = preview.value.condition;
+    if (condition) {
       weather = {
         entity_id: "weather.preview",
-        state: preview.condition,
-        attributes: { ...weather?.attributes },
+        state: condition,
+        // The demo has no weather entity, so give the header a plausible
+        // outdoor temperature to show next to the condition.
+        attributes: weather?.attributes ?? (isDemoBuild ? { temperature: 9, temperature_unit: "°C" } : {}),
         last_changed: "",
         last_updated: "",
       };
@@ -82,9 +116,8 @@ export function useAtmosphere(
       now: now.value,
     });
 
-    return preview.phase
-      ? { ...derived, phase: preview.phase, ...PREVIEW_POSITIONS[preview.phase] }
-      : derived;
+    const phase = preview.value.phase;
+    return phase ? { ...derived, phase, ...PREVIEW_POSITIONS[phase] } : derived;
   });
 
   return { atmosphere, mode };
