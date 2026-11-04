@@ -76,7 +76,39 @@
           "h": 5,
           "bindings": {
             "calendar": "calendar[]"
-          }
+          },
+          "requires": [
+            "calendar"
+          ],
+          "otherwise": [
+            {
+              "instanceId": "vacuum",
+              "card": "vacuum",
+              "requires": [
+                "vacuum"
+              ],
+              "bindings": {
+                "vacuum": "vacuum"
+              }
+            },
+            {
+              "instanceId": "presence",
+              "card": "presence",
+              "requires": [
+                "person"
+              ],
+              "bindings": {
+                "person": "person[]"
+              }
+            },
+            {
+              "instanceId": "agenda",
+              "card": "agenda",
+              "bindings": {
+                "calendar": "calendar[]"
+              }
+            }
+          ]
         }
       ]
     },

@@ -30,6 +30,8 @@ export type TemplateStackCard = {
   props?: Record<string, string | number | boolean>;
   /** Skip the card unless at least one of these capability kinds exists. */
   requires?: string[];
+  /** Tried in order when `requires` is not met, e.g. a vacuum when there is no calendar. */
+  otherwise?: Array<Omit<TemplateStackCard, "otherwise" | "h">>;
 };
 
 /** Cards stacked top to bottom in a fixed column span. */
@@ -212,8 +214,12 @@ export function instantiateTemplate(
   const bottoms = new Map<string, number>();
   for (const region of template.regions.filter(isStack)) {
     let y = 0;
-    for (const slot of region.stack) {
-      if (slot.requires && !slot.requires.some((kind) => lookup(kind).length)) continue;
+    for (const preferred of region.stack) {
+      const met = (candidate: { requires?: string[] }) =>
+        !candidate.requires || candidate.requires.some((kind) => lookup(kind).length);
+      const choice = [preferred, ...(preferred.otherwise ?? [])].find(met);
+      if (!choice) continue;
+      const slot = { ...choice, h: preferred.h };
       cards.push({
         instanceId: slot.instanceId,
         card: slot.card,

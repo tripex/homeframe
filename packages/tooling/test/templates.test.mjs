@@ -66,3 +66,13 @@ test("rooms with a temperature reading are preferred and capped at four", () => 
   assert.equal(rooms.length, 4);
   assert.deepEqual(rooms.map((card) => card.areaId), ["area-1", "area-3", "area-5", "area-0"]);
 });
+
+test("without calendars the agenda slot falls back to the vacuum, then people", () => {
+  const withVacuum = instantiateTemplate(template, { areas: [], capabilities: { vacuum: ["vacuum.robot"], person: ["person.anna"] } });
+  const vacuum = withVacuum.cards.find((card) => card.instanceId === "vacuum");
+  assert.deepEqual(vacuum.bindings, { vacuum: "vacuum.robot" });
+  assert.deepEqual(vacuum.layout, { x: 8, y: 0, w: 4, h: 5 }, "the fallback keeps the slot's height");
+
+  const withPeople = instantiateTemplate(template, { areas: [], capabilities: { person: ["person.anna"] } });
+  assert.ok(withPeople.cards.some((card) => card.card === "presence"));
+});

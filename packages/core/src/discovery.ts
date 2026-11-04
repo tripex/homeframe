@@ -29,6 +29,11 @@ function isPricePerKwh(state: HassState): boolean {
   return /^[^\d\s/]{1,6}\s*\/\s*kwh$/i.test(unit);
 }
 
+/** `camera.l50_ultra_map`, `camera.robot_map_1`, "Robot Map" … */
+function isVacuumMap(entityId: string, label: string): boolean {
+  return /_map(_\d+)?$/.test(entityId) || /\bmap\b/i.test(label);
+}
+
 /**
  * Classify one entity into the semantic concept that is most useful to a dashboard.
  *
@@ -60,7 +65,9 @@ function classifyCapability(
   // Cameras, calendars and people are whole Home Assistant domains, so the
   // domain alone is a reliable signal. A `person` is a tracked household
   // member; the `presence` kind stays reserved for presence/occupancy sensors.
-  if (domain === "camera") return "camera";
+  // Robot vacuums publish their floor map as a camera entity; it is not
+  // something to watch on a camera card.
+  if (domain === "camera") return isVacuumMap(entity.entity_id, label) ? "generic" : "camera";
   if (domain === "calendar") return "calendar";
   if (domain === "person") return "person";
 
@@ -171,6 +178,19 @@ export function discoverHome(snapshot: RegistrySnapshot): SemanticHome {
     } else {
       unassigned.push(capability);
     }
+  }
+
+  // sun.sun and YAML-configured weather entities often have no entity
+  // registry entry, yet a dashboard's sky depends on them. Pick these
+  // home-wide singletons up from the plain states.
+  const registered = new Set(snapshot.entities.map((entity) => entity.entity_id));
+  for (const state of snapshot.states) {
+    const domain = getDomain(state.entity_id);
+    if (registered.has(state.entity_id) || (domain !== "sun" && domain !== "weather")) continue;
+    const stub: EntityRegistryEntry = { entity_id: state.entity_id };
+    const label = displayName(stub, state);
+    const kind = classifyCapability(stub, state, label);
+    unassigned.push({ kind, entityId: state.entity_id, label, domain, score: capabilityScore(kind, stub, state) });
   }
 
   for (const area of discoveredAreas.values()) {

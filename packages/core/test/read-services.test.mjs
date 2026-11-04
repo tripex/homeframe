@@ -44,10 +44,10 @@ test("calendar events from several calendars are merged and sorted, all-day firs
   assert.equal(events[0].location, "Town");
 });
 
-test("cameras, calendars and people are discovered by domain", () => {
+test("cameras, calendars and people are discovered by domain; vacuum maps are not cameras", () => {
   const entity = (entity_id) => ({ entity_id, area_id: null, device_id: null, name: null });
   const state = (entity_id) => ({ entity_id, state: "idle", attributes: {}, last_changed: "", last_updated: "" });
-  const ids = ["camera.doorbell", "calendar.family", "person.anna"];
+  const ids = ["camera.doorbell", "calendar.family", "person.anna", "camera.l50_ultra_map", "camera.robot_map_1"];
   const home = discoverHome({ areas: [], devices: [], entities: ids.map(entity), states: ids.map(state) });
 
   assert.deepEqual(
@@ -56,6 +56,25 @@ test("cameras, calendars and people are discovered by domain", () => {
       ["camera.doorbell", "camera"],
       ["calendar.family", "calendar"],
       ["person.anna", "person"],
+      ["camera.l50_ultra_map", "generic"],
+      ["camera.robot_map_1", "generic"],
+    ],
+  );
+});
+
+test("sun and weather without a registry entry are still discovered", () => {
+  const state = (entity_id) => ({ entity_id, state: "above_horizon", attributes: {}, last_changed: "", last_updated: "" });
+  const home = discoverHome({
+    areas: [],
+    devices: [],
+    entities: [],
+    states: [state("sun.sun"), state("weather.home"), state("sensor.unregistered_temperature")],
+  });
+  assert.deepEqual(
+    home.unassigned.map((capability) => [capability.entityId, capability.kind]),
+    [
+      ["sun.sun", "sun"],
+      ["weather.home", "weather"],
     ],
   );
 });
