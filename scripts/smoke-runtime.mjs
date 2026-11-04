@@ -326,7 +326,7 @@ try {
   fakeSupervisor = await startFakeHomeAssistant({ port: 0, token: supervisorToken });
   const addonData = await mkdtemp(path.join(os.tmpdir(), "homeframe-addon-smoke-"));
   // The add-on's options as the Supervisor writes them.
-  await writeFile(path.join(addonData, "options.json"), JSON.stringify({ allow_control: true }));
+  await writeFile(path.join(addonData, "options.json"), JSON.stringify({ allow_control: true, locale: "da" }));
 
   const addonPort = await freePort();
   supervisorChild = await startRuntime({
@@ -342,6 +342,12 @@ try {
   assert.equal(addonHealth.homeAssistant, "connected");
   assert.equal(addonHealth.connection, "supervisor");
   assert.equal(addonHealth.controlActions, "enabled", "allow_control comes from /data/options.json");
+
+  // First start fills in home-tablet from the live home, in the option's language.
+  const bootstrapped = await (await fetch(`${addonUrl}/api/dashboards/home-tablet`)).json();
+  assert.equal(bootstrapped.locale, "da");
+  assert.equal(bootstrapped.name, "Hjem");
+  assert.ok(bootstrapped.cards.some((card) => card.card === "home-scene"));
 
   // Template → saved dashboard, from the home the add-on sees.
   const addonHome = await loadHomeSnapshot({ runtimeUrl: addonUrl, name: "Addon Home" });

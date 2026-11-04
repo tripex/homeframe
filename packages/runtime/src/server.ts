@@ -6,7 +6,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   CardActionError,
+  createDashboardFromTemplate,
   getDashboard,
+  homeSnapshotFromSemanticHome,
   listDashboards,
   resolveCardAction,
   type CardActionRequest,
@@ -52,6 +54,30 @@ const maxActionBodyBytes = 16 * 1024;
 
 const homeAssistant = new RuntimeHomeAssistant();
 await homeAssistant.start(connection);
+
+/**
+ * An add-on user cannot easily run the CLI inside the container, so the
+ * first start fills in the home-tablet template from the live home. Later
+ * starts never touch existing dashboards.
+ */
+async function bootstrapFirstDashboard(): Promise<void> {
+  if (!runningAsAddon || homeAssistant.snapshot().status !== "connected") return;
+  if ((await listDashboards()).length) return;
+
+  try {
+    const home = homeSnapshotFromSemanticHome(homeAssistant.snapshot().semanticHome, "Home");
+    const dashboard = await createDashboardFromTemplate("home-tablet", home, {
+      id: "home-tablet",
+      name: addonOptions.locale === "da" ? "Hjem" : "Home",
+      locale: addonOptions.locale,
+    });
+    console.log(`Created first dashboard ${dashboard.id} from the home-tablet template`);
+  } catch (error) {
+    console.error(`Could not create a first dashboard: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+await bootstrapFirstDashboard();
 
 const mime: Record<string, string> = {
   ".css": "text/css; charset=utf-8",

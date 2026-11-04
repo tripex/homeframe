@@ -105,6 +105,23 @@ node packages/cli/dist/cli.js dashboard plan \
   --save
 ```
 
+### Fill in a designed template
+
+Templates in `catalog/templates` are hand-designed screens described with
+capability kinds only. `home-tablet` is a 1280×800 wall-tablet home screen.
+
+```bash
+node packages/cli/dist/cli.js templates list
+
+# Preview, then save; --locale sets the UI language (en, da)
+node packages/cli/dist/cli.js dashboard from-template home-tablet examples/home-snapshot.json --locale da
+node packages/cli/dist/cli.js dashboard from-template home-tablet live --id hall-tablet --name Hjem --locale da --save
+```
+
+`--save` refuses to overwrite an existing dashboard id unless `--replace` is
+passed. The MCP equivalents are `list_templates` and
+`create_dashboard_from_template`.
+
 ### Add cards and bindings
 
 ```bash

@@ -65,6 +65,8 @@ export function resolveConnection(env: Env = process.env): HomeAssistantConnecti
 /** The add-on's user options, written by the Supervisor to /data/options.json. */
 export type AddonOptions = {
   allow_control?: boolean;
+  /** UI language for the dashboard created on first start. */
+  locale?: string;
 };
 
 export function readAddonOptions(dataDir: string): AddonOptions {

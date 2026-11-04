@@ -241,6 +241,15 @@ See [`docs/HERMES.md`](docs/HERMES.md) for the intended agent workflow and [`doc
 
 ## Connecting Home Assistant
 
+### As a Home Assistant add-on
+
+On Home Assistant OS, add `https://github.com/tripex/homeframe` as an add-on
+repository and install **Homeframe**. It opens from the sidebar through
+ingress and connects with the Supervisor's own token, so there is no token to
+create. See [docs/ADDON.md](docs/ADDON.md).
+
+### Standalone runtime
+
 The preferred way to connect a real home is through Homeframe Runtime, which keeps the Home Assistant token on the server and only sends states and semantic discovery data to screens:
 
 ```bash
@@ -272,7 +281,7 @@ VITE_HA_URL=http://homeassistant.local:8123
 VITE_HA_TOKEN=your-development-token
 ```
 
-**Do not treat `VITE_HA_TOKEN` as the production authentication model.** Anything embedded in a browser build is visible to the browser. Production authentication/session handling is still an explicit roadmap item.
+**`VITE_HA_TOKEN` only works with `npm run dev`.** Production builds ignore it (a test fails the build if a token ends up in the bundle) and always reach Home Assistant through the runtime.
 
 For AI-driven dashboard creation, Hermes should inspect the home through Home Assistant MCP and provide Homeframe with a semantic `HomeSnapshot`. Homeframe does not require one specific HA MCP implementation.
 

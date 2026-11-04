@@ -1,0 +1,39 @@
+# Home Assistant add-on (a.k.a. "app") for Homeframe.
+# Reference: https://developers.home-assistant.io/docs/apps/configuration
+name: Homeframe
+version: "0.3.0"
+slug: homeframe
+description: Calm, AI-first dashboards for wall tablets, served inside Home Assistant.
+url: https://github.com/tripex/homeframe
+stage: experimental
+arch:
+  - amd64
+  - aarch64
+startup: application
+boot: auto
+
+# Opened from the Home Assistant sidebar; Home Assistant handles login.
+# No `ports`: the dashboard is only reachable through ingress.
+ingress: true
+ingress_port: 8099
+panel_icon: mdi:view-dashboard
+panel_title: Homeframe
+watchdog: "http://[HOST]:[PORT:8099]/api/health"
+
+# The runtime talks to Core through the Supervisor proxy with
+# SUPERVISOR_TOKEN; no long-lived token is needed and none reaches a browser.
+homeassistant_api: true
+
+# /data (dashboards, options) is always mapped and survives updates.
+# The add-on config folder (/addon_configs/<repo>_homeframe on the host) is
+# where users drop their own house photos: home-day.jpg / home-night.jpg.
+map:
+  - type: addon_config
+    read_only: true
+
+options:
+  allow_control: true
+  locale: en
+schema:
+  allow_control: bool
+  locale: list(en|da)

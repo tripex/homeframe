@@ -1,0 +1,12 @@
+configuration:
+  allow_control:
+    name: Allow controls
+    description: >-
+      Let dashboards switch lights, set climate targets and start or dock a
+      vacuum. Locks, alarms and garage doors can never be changed from
+      Homeframe, whatever this is set to.
+  locale:
+    name: Language
+    description: >-
+      Language of the dashboard created on first start (en or da). Existing
+      dashboards keep their own setting.

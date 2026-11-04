@@ -146,11 +146,13 @@ const IMAGE_TYPES: Record<string, string> = {
 
 /**
  * Locate an installation image such as `<data dir>/assets/home-day.webp`.
+ * HOMEFRAME_ASSETS_DIR overrides the folder; the add-on points it at its
+ * public config folder so users can drop photos in over Samba.
  * Names are restricted to a safe slug so a request cannot leave the folder.
  */
 export async function findInstallationImage(name: string): Promise<{ file: string; type: string } | undefined> {
   if (!/^[a-z0-9][a-z0-9-]*$/.test(name)) return undefined;
-  const folder = path.join(installationInfo().dataDir, "assets");
+  const folder = process.env.HOMEFRAME_ASSETS_DIR ?? path.join(installationInfo().dataDir, "assets");
 
   for (const [extension, type] of Object.entries(IMAGE_TYPES)) {
     const file = path.join(folder, `${name}${extension}`);

@@ -74,7 +74,11 @@ screen  →  POST /api/actions { dashboardId, instanceId, actionId }
         saved bindings → Home Assistant service call
 ```
 
-`control` actions run only when the runtime is started with `HOMEFRAME_ALLOW_CONTROL=true`. `security` actions are refused unconditionally until Homeframe has an explicit approval path.
+`control` actions run only when the runtime is started with `HOMEFRAME_ALLOW_CONTROL=true` (or, as a Home Assistant add-on, with the `allow_control` option). `security` actions are refused unconditionally until Homeframe has an explicit approval path, and `packages/tooling/src/service-policy.ts` re-checks every resolved service call so a lock, alarm or garage bound by mistake into another card is still refused.
+
+Cards that need more than states read through the runtime as well, always by dashboard and card instance: `api/forecast` and `api/agenda` (via the read-only `weather.get_forecasts` and `calendar.get_events`), `api/camera_proxy/<camera>` (stills, only for cameras on a saved dashboard) and `api/assets/<name>` (the installation's own house photos).
+
+The runtime finds Home Assistant in one of three ways (`packages/runtime/src/config.ts`): `HOMEFRAME_HA_URL` + `HOMEFRAME_HA_TOKEN`, the Supervisor proxy when it runs as an add-on (`SUPERVISOR_TOKEN`, see `docs/ADDON.md`), or not at all.
 
 ## Dependency direction
 

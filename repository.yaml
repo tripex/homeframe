@@ -1,0 +1,5 @@
+# Home Assistant add-on repository. Add https://github.com/tripex/homeframe
+# under Settings → Add-ons → Add-on store → ⋮ → Repositories.
+name: Homeframe
+url: https://github.com/tripex/homeframe
+maintainer: Bo Gunnarson
