@@ -5,6 +5,8 @@ import * as z from "zod/v4";
 import {
   addCard,
   createDashboard,
+  createDashboardFromTemplate,
+  listTemplates,
   getCard,
   getDashboard,
   installationInfo,
@@ -297,6 +299,41 @@ serveStdio(() => {
     },
     async ({ dashboardId, mode, sun, weather }) =>
       text(await setAtmosphere(dashboardId, { mode, sun, weather })),
+  );
+
+  server.registerTool(
+    "list_templates",
+    {
+      description:
+        "List designed dashboard templates (e.g. home-tablet: hero house picture, status column, cameras, rooms). Templates contain capability kinds, never entity ids.",
+      inputSchema: z.object({}),
+    },
+    async () => text(await listTemplates()),
+  );
+
+  server.registerTool(
+    "create_dashboard_from_template",
+    {
+      description:
+        "Fill a template in from a HomeSnapshot (or the live home when `home` is omitted) and save it as a dashboard. Refuses to overwrite an existing id unless replace is true. Set locale (e.g. da) for the UI language. Does not change Home Assistant.",
+      inputSchema: z.object({
+        templateId: z.string().min(1),
+        home: homeSnapshot.optional(),
+        id: z.string().regex(/^[a-z0-9][a-z0-9-]*$/).optional(),
+        name: z.string().min(1).optional(),
+        locale: z.string().min(2).optional(),
+        replace: z.boolean().optional(),
+      }),
+    },
+    async ({ templateId, home, id, name, locale, replace }) =>
+      text(
+        await createDashboardFromTemplate(templateId, home ?? (await loadHomeSnapshot()), {
+          id,
+          name,
+          locale,
+          replace,
+        }),
+      ),
   );
 
   server.registerTool(

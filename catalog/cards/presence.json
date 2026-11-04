@@ -1,0 +1,20 @@
+{
+  "id": "presence",
+  "version": "0.1.0",
+  "displayName": "Presence",
+  "description": "Who is home: one avatar per person entity with a home/away state.",
+  "aiSummary": "Use when person entities exist to show who is home and who is away.",
+  "sizes": [
+    "sm",
+    "md"
+  ],
+  "capabilities": [
+    {
+      "kind": "person",
+      "required": true,
+      "multiple": true
+    }
+  ],
+  "props": {},
+  "actions": []
+}

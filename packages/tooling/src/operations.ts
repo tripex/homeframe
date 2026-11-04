@@ -18,8 +18,10 @@ import {
   autoLayout,
   planDashboards,
   targetFor,
+  type HomeSnapshot,
   type PlanRequest,
 } from "./planner.js";
+import { getTemplate, instantiateTemplate, type TemplateOptions } from "./templates.js";
 import { validateDashboard } from "./validation.js";
 
 export type EngineOptions = {
@@ -318,6 +320,30 @@ export async function planAndSaveDashboards(
   }
 
   return saved;
+}
+
+/**
+ * Instantiate a template against a home and save it. Like planning, this is
+ * a create operation: it refuses to overwrite an existing dashboard unless
+ * `replace` is set, so hand-tuned bindings are not lost on a rerun.
+ */
+export async function createDashboardFromTemplate(
+  templateId: string,
+  home: HomeSnapshot,
+  templateOptions: TemplateOptions & { replace?: boolean } = {},
+  options: EngineOptions = {},
+): Promise<DashboardManifest> {
+  const template = await getTemplate(templateId, options.frameworkRoot);
+  if (!template) throw new Error(`Unknown template: ${templateId}`);
+
+  const dashboard = instantiateTemplate(template, home, templateOptions);
+  if (!templateOptions.replace && (await readDashboard(dashboard.id, options.dataDir))) {
+    throw new Error(
+      `Dashboard already exists: ${dashboard.id}. Pass replace to overwrite it, or choose another id.`,
+    );
+  }
+
+  return saveDashboard(dashboard, options);
 }
 
 export function installationInfo(options: EngineOptions = {}) {

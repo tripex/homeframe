@@ -91,6 +91,16 @@ export type DashboardAtmosphere = {
 };
 
 /**
+ * Screen chrome around the cards. Tablets and desktops default to a side
+ * navigation, phones to a bottom bar.
+ */
+export type DashboardNavigation = {
+  style?: "side" | "bottom";
+  /** `person.*` entities shown at the bottom of the side navigation. */
+  people?: string[];
+};
+
+/**
  * A DashboardManifest is installation data, not framework source code.
  * Different screens should normally use separate manifests.
  *
@@ -104,6 +114,12 @@ export type DashboardManifest = {
   target: DashboardTarget;
   theme?: string;
   atmosphere?: DashboardAtmosphere;
+  navigation?: DashboardNavigation;
+  /**
+   * UI language as a BCP 47 tag such as "en" or "da". Homeframe ships a small
+   * built-in dictionary and falls back to English for anything it lacks.
+   */
+  locale?: string;
   generatedBy?: string;
   cards: DashboardCard[];
   createdAt?: string;

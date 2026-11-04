@@ -1,0 +1,29 @@
+{
+  "id": "camera",
+  "version": "0.1.0",
+  "displayName": "Camera",
+  "description": "Still snapshot from one camera, refreshed about every ten seconds through Homeframe Runtime. No live stream and no Home Assistant token in the browser.",
+  "aiSummary": "Use to glance at a doorbell, driveway or garden camera; one card per camera.",
+  "sizes": [
+    "md",
+    "wide"
+  ],
+  "capabilities": [
+    {
+      "kind": "camera",
+      "required": true
+    }
+  ],
+  "props": {
+    "title": {
+      "type": "string",
+      "description": "Optional label; defaults to the camera's friendly name."
+    },
+    "refreshSeconds": {
+      "type": "number",
+      "description": "Seconds between snapshots (minimum 5).",
+      "default": 10
+    }
+  },
+  "actions": []
+}

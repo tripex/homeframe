@@ -68,7 +68,7 @@ export function targetFor(profile: DeviceProfileId): DashboardTarget {
   return { ...profiles[profile] };
 }
 
-function slug(value: string): string {
+export function slug(value: string): string {
   return value
     .toLowerCase()
     .normalize("NFKD")
@@ -239,7 +239,7 @@ function globalCards(home: HomeSnapshot): DashboardCard[] {
  * The ambient scene uses the first sun and weather entity. Even without
  * either, a live atmosphere is planned: the renderer falls back to the clock.
  */
-function atmosphereFor(home: HomeSnapshot): DashboardAtmosphere {
+export function atmosphereFor(home: HomeSnapshot): DashboardAtmosphere {
   const global = home.capabilities ?? {};
   return {
     mode: "live",

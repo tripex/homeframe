@@ -1,0 +1,43 @@
+{
+  "id": "home-scene",
+  "version": "0.1.0",
+  "displayName": "Home scene",
+  "description": "Hero picture of the house with calm status chips: locks, lights on and indoor climate. Shows the installation's own day/night photo when one is uploaded, otherwise the live sky.",
+  "aiSummary": "Use as the large centrepiece of a tablet or desktop dashboard to summarize the whole house at a glance.",
+  "sizes": [
+    "lg",
+    "wide"
+  ],
+  "capabilities": [
+    {
+      "kind": "sun"
+    },
+    {
+      "kind": "weather"
+    },
+    {
+      "kind": "lock",
+      "multiple": true
+    },
+    {
+      "kind": "light",
+      "multiple": true
+    },
+    {
+      "kind": "climate",
+      "multiple": true
+    }
+  ],
+  "props": {
+    "title": {
+      "type": "string",
+      "description": "Optional heading over the picture, e.g. the house name."
+    },
+    "image": {
+      "type": "string",
+      "description": "Base name of the installation images in <data dir>/assets: <image>-day.(webp|jpg|png) and <image>-night.*",
+      "default": "home"
+    }
+  },
+  "actions": []
+}

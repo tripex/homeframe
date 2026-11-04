@@ -3,6 +3,10 @@ import { readFile, writeFile } from "node:fs/promises";
 import {
   addCard,
   createDashboard,
+  createDashboardFromTemplate,
+  getTemplate,
+  instantiateTemplate,
+  listTemplates,
   doctor,
   getCard,
   getDashboard,
@@ -52,6 +56,13 @@ Dashboards
   homeframe dashboard delete <id>
   homeframe dashboard plan <home-snapshot.json|live> <profiles> [--save]
   homeframe dashboard reflow <id>
+  homeframe dashboard from-template <template> <home-snapshot.json|live> [--id <id>] [--name <name>]
+                                    [--locale <en|da>] [--save] [--replace]
+    Fill a designed screen layout (see "templates list") in from a home. Without --save the
+    manifest is only printed. --replace overwrites an existing dashboard with the same id.
+
+Templates
+  homeframe templates list
 
 Cards and bindings
   homeframe card add <dashboard> <card> <instance-id> [area-id]
@@ -160,6 +171,29 @@ async function main(): Promise<void> {
     const targets = values[1].split(",") as DeviceProfileId[];
     const request = { home, targets };
     print(values.includes("--save") ? await planAndSaveDashboards(request) : planDashboards(request));
+    return;
+  }
+
+  if (group === "templates" && command === "list") {
+    for (const template of await listTemplates()) {
+      console.log(`${template.id}\t${template.profile}\t${template.aiSummary}`);
+    }
+    return;
+  }
+
+  if (group === "dashboard" && command === "from-template" && values.length >= 2) {
+    const [templateId, source] = values;
+    const home = source === "live" ? await loadHomeSnapshot() : await readJson<HomeSnapshot>(source);
+    const options = { id: flag(values, "id"), name: flag(values, "name"), locale: flag(values, "locale") };
+
+    if (values.includes("--save")) {
+      print(await createDashboardFromTemplate(templateId, home, { ...options, replace: values.includes("--replace") }));
+      return;
+    }
+
+    const template = await getTemplate(templateId);
+    if (!template) throw new Error(`Unknown template: ${templateId}`);
+    print(instantiateTemplate(template, home, options));
     return;
   }
 

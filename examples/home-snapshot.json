@@ -5,37 +5,81 @@
       "id": "living-room",
       "name": "Living room",
       "capabilities": {
-        "temperature": ["sensor.living_room_temperature"],
-        "humidity": ["sensor.living_room_humidity"],
-        "light": ["light.living_room_ceiling", "light.living_room_lamp"],
-        "climate": ["climate.living_room"]
+        "temperature": [
+          "sensor.living_room_temperature"
+        ],
+        "humidity": [
+          "sensor.living_room_humidity"
+        ],
+        "light": [
+          "light.living_room_ceiling",
+          "light.living_room_lamp"
+        ],
+        "climate": [
+          "climate.living_room"
+        ]
       }
     },
     {
       "id": "kitchen",
       "name": "Kitchen",
       "capabilities": {
-        "temperature": ["sensor.kitchen_temperature"],
-        "light": ["light.kitchen"],
-        "climate": ["climate.kitchen"]
+        "temperature": [
+          "sensor.kitchen_temperature"
+        ],
+        "light": [
+          "light.kitchen"
+        ],
+        "climate": [
+          "climate.kitchen"
+        ]
       }
     },
     {
       "id": "utility-room",
       "name": "Utility room",
       "capabilities": {
-        "temperature": ["sensor.utility_room_temperature"]
+        "temperature": [
+          "sensor.utility_room_temperature"
+        ]
       }
     }
   ],
   "capabilities": {
-    "power": ["sensor.home_power"],
-    "energy": ["sensor.home_energy_today"],
-    "washer": ["sensor.washer_state"],
-    "vacuum": ["vacuum.robot"],
-    "lock": ["lock.front_door"],
-    "price": ["sensor.electricity_price"],
-    "sun": ["sun.sun"],
-    "weather": ["weather.home"]
+    "power": [
+      "sensor.home_power"
+    ],
+    "energy": [
+      "sensor.home_energy_today"
+    ],
+    "washer": [
+      "sensor.washer_state"
+    ],
+    "vacuum": [
+      "vacuum.robot"
+    ],
+    "lock": [
+      "lock.front_door"
+    ],
+    "price": [
+      "sensor.electricity_price"
+    ],
+    "sun": [
+      "sun.sun"
+    ],
+    "weather": [
+      "weather.home"
+    ],
+    "camera": [
+      "camera.front_door",
+      "camera.driveway"
+    ],
+    "calendar": [
+      "calendar.family"
+    ],
+    "person": [
+      "person.anna",
+      "person.ben"
+    ]
   }
 }

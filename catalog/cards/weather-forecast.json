@@ -1,0 +1,26 @@
+{
+  "id": "weather-forecast",
+  "version": "0.1.0",
+  "displayName": "Weather forecast",
+  "description": "Daily forecast for the coming days from a weather entity, fetched by Homeframe Runtime with weather.get_forecasts.",
+  "aiSummary": "Use when a weather entity exists and the screen has room for the next few days' outlook.",
+  "sizes": [
+    "sm",
+    "md",
+    "wide"
+  ],
+  "capabilities": [
+    {
+      "kind": "weather",
+      "required": true
+    }
+  ],
+  "props": {
+    "days": {
+      "type": "number",
+      "description": "How many days to show.",
+      "default": 5
+    }
+  },
+  "actions": []
+}

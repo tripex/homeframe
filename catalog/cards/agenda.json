@@ -1,0 +1,26 @@
+{
+  "id": "agenda",
+  "version": "0.1.0",
+  "displayName": "Agenda",
+  "description": "Upcoming events from today and the next seven days across the bound calendars, fetched by Homeframe Runtime with calendar.get_events.",
+  "aiSummary": "Use when the home has calendar entities and the household wants a shared view of what is coming up.",
+  "sizes": [
+    "md",
+    "lg"
+  ],
+  "capabilities": [
+    {
+      "kind": "calendar",
+      "required": true,
+      "multiple": true
+    }
+  ],
+  "props": {
+    "maxEvents": {
+      "type": "number",
+      "description": "Maximum number of events to list.",
+      "default": 6
+    }
+  },
+  "actions": []
+}

@@ -7,6 +7,8 @@ export * from "./operations.js";
 export * from "./planner.js";
 export * from "./validation.js";
 export * from "./home-snapshot.js";
+export * from "./service-policy.js";
+export * from "./templates.js";
 
 export async function doctor(root?: string): Promise<{
   ok: boolean;

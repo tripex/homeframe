@@ -1,0 +1,116 @@
+{
+  "id": "home-tablet",
+  "displayName": "Home tablet",
+  "description": "Wall tablet home screen: side navigation, a hero picture of the house with up to two cameras beneath it, a status column (locks, climate, forecast, agenda) and a row of the most useful rooms.",
+  "aiSummary": "Use for a 10\" landscape wall tablet that should feel like the front page of the house rather than a grid of devices.",
+  "profile": "tablet-10",
+  "navigation": {
+    "style": "side",
+    "people": "person[]"
+  },
+  "regions": [
+    {
+      "id": "hero",
+      "x": 0,
+      "w": 8,
+      "stack": [
+        {
+          "instanceId": "home-scene",
+          "card": "home-scene",
+          "h": 7,
+          "bindings": {
+            "sun": "sun",
+            "weather": "weather",
+            "lock": "lock[]",
+            "light": "light[]",
+            "climate": "climate[]"
+          }
+        }
+      ]
+    },
+    {
+      "id": "status",
+      "x": 8,
+      "w": 4,
+      "stack": [
+        {
+          "instanceId": "lock-status",
+          "card": "security",
+          "h": 1,
+          "requires": [
+            "lock",
+            "alarm",
+            "garage"
+          ],
+          "bindings": {
+            "lock": "lock[]",
+            "alarm": "alarm[]",
+            "garage": "garage[]"
+          }
+        },
+        {
+          "instanceId": "climate-overview",
+          "card": "climate",
+          "h": 2,
+          "requires": [
+            "climate"
+          ],
+          "bindings": {
+            "climate": "climate[]"
+          }
+        },
+        {
+          "instanceId": "forecast",
+          "card": "weather-forecast",
+          "h": 2,
+          "requires": [
+            "weather"
+          ],
+          "bindings": {
+            "weather": "weather"
+          }
+        },
+        {
+          "instanceId": "agenda",
+          "card": "agenda",
+          "h": 5,
+          "bindings": {
+            "calendar": "calendar[]"
+          }
+        }
+      ]
+    },
+    {
+      "id": "camera",
+      "card": "camera",
+      "w": 4,
+      "h": 3,
+      "max": 2,
+      "fill": true,
+      "x": 0,
+      "span": 8,
+      "below": "hero",
+      "repeat": {
+        "kind": "camera",
+        "binding": "camera"
+      }
+    },
+    {
+      "id": "room",
+      "card": "room",
+      "w": 3,
+      "h": 2,
+      "max": 4,
+      "fill": true,
+      "repeat": {
+        "areas": true
+      },
+      "bindings": {
+        "temperature": "temperature",
+        "humidity": "humidity",
+        "light": "light[]",
+        "climate": "climate"
+      }
+    }
+  ]
+}
