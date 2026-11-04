@@ -65,6 +65,9 @@ export type CapabilityKind =
   | "sun"
   | "weather"
   | "price"
+  | "camera"
+  | "calendar"
+  | "person"
   | "generic";
 
 /**

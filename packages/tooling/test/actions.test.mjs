@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import path from "node:path";
 import { test } from "node:test";
-import { CardActionError, resolveCardAction } from "../dist/index.js";
+import {
+  assertControlServiceCall,
+  CardActionError,
+  resolveCardAction,
+  ServicePolicyError,
+} from "../dist/index.js";
 
 const frameworkRoot = path.resolve(new URL("../../..", import.meta.url).pathname);
 
@@ -30,6 +35,8 @@ const dashboard = {
     { instanceId: "vacuum-overview", card: "vacuum", bindings: { vacuum: "vacuum.robot" } },
     { instanceId: "washer-overview", card: "appliance", bindings: { washer: "sensor.washer" } },
     { instanceId: "security-overview", card: "security", bindings: { lock: "lock.front_door" } },
+    // A tampered or mistaken manifest: a lock bound where a light belongs.
+    { instanceId: "room-tampered", card: "room", bindings: { light: ["light.hall", "lock.front_door"] } },
   ],
 };
 
@@ -138,4 +145,31 @@ test("security actions are refused before any service mapping", async () => {
 test("unknown instances and actions are not found", async () => {
   await rejectsWith(resolve("nope", "toggle-lights"), 404, "unknown-card-instance");
   await rejectsWith(resolve("room-kitchen", "launch-rocket"), 404, "unknown-action");
+});
+
+test("a lock smuggled into a light binding is refused as a security entity", async () => {
+  await rejectsWith(resolve("room-tampered", "toggle-lights"), 403, "security-entity");
+});
+
+test("the service policy only lets control services touch their own domain", () => {
+  const states = new Map([
+    ["cover.garage", { entity_id: "cover.garage", state: "closed", attributes: { device_class: "garage" }, last_changed: "", last_updated: "" }],
+  ]);
+  const refused = (call, reason) =>
+    assert.throws(
+      () => assertControlServiceCall(call, states),
+      (error) => error instanceof ServicePolicyError && error.reason === reason,
+    );
+
+  refused({ domain: "lock", service: "unlock", target: { entity_id: "lock.front_door" } }, "security-entity");
+  refused({ domain: "alarm_control_panel", service: "alarm_disarm", target: { entity_id: "alarm_control_panel.home" } }, "security-entity");
+  refused({ domain: "cover", service: "open_cover", target: { entity_id: "cover.garage" } }, "security-entity");
+  refused({ domain: "light", service: "turn_on", target: { area_id: "hall" } }, "domain-not-allowed");
+  refused({ domain: "light", service: "turn_on", target: { entity_id: "switch.heater" } }, "domain-not-allowed");
+  refused({ domain: "homeassistant", service: "restart", target: { entity_id: "light.hall" } }, "domain-not-allowed");
+  refused({ domain: "light", service: "turn_on" }, "domain-not-allowed");
+
+  assert.doesNotThrow(() =>
+    assertControlServiceCall({ domain: "light", service: "turn_on", target: { entity_id: ["light.a", "light.b"] } }, states),
+  );
 });

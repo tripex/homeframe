@@ -28,6 +28,9 @@ const HOME_LEVEL_KINDS: readonly CapabilityKind[] = [
   "price",
   "sun",
   "weather",
+  "camera",
+  "calendar",
+  "person",
 ];
 
 /** Add one capability's entity id to a capability map, deduped and in order. */

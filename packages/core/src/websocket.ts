@@ -37,13 +37,20 @@ export class HomeAssistantClient {
   private stateListeners = new Set<StateListener>();
   private authenticated = false;
 
+  /**
+   * `options.websocketUrl` overrides the URL derived from `baseUrl`. The Home
+   * Assistant add-on proxy lives at `ws://supervisor/core/websocket`, which
+   * does not follow the usual `<base>/api/websocket` pattern.
+   */
   constructor(
     private readonly baseUrl: string,
     private readonly accessToken: string,
+    private readonly options: { websocketUrl?: string } = {},
   ) {}
 
   async connect(): Promise<void> {
     const websocketUrl =
+      this.options.websocketUrl ??
       this.baseUrl.replace(/^http/, "ws").replace(/\/$/, "") + "/api/websocket";
 
     this.socket = new WebSocket(websocketUrl);
@@ -243,6 +250,22 @@ export class HomeAssistantClient {
       service_data: call.serviceData ?? {},
       target: call.target ?? {},
     });
+  }
+
+  /**
+   * Call a service that returns data, such as `weather.get_forecasts` or
+   * `calendar.get_events`, and return its `response` payload.
+   */
+  async callServiceForResponse<T = unknown>(call: ServiceCall): Promise<T> {
+    const result = await this.callWebSocket<{ response?: T }>({
+      type: "call_service",
+      domain: call.domain,
+      service: call.service,
+      service_data: call.serviceData ?? {},
+      target: call.target ?? {},
+      return_response: true,
+    });
+    return result?.response as T;
   }
 
   close(): void {

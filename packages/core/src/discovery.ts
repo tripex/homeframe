@@ -57,6 +57,12 @@ function classifyCapability(
   if (domain === "media_player") return "media";
   if (domain === "sun") return "sun";
   if (domain === "weather") return "weather";
+  // Cameras, calendars and people are whole Home Assistant domains, so the
+  // domain alone is a reliable signal. A `person` is a tracked household
+  // member; the `presence` kind stays reserved for presence/occupancy sensors.
+  if (domain === "camera") return "camera";
+  if (domain === "calendar") return "calendar";
+  if (domain === "person") return "person";
 
   // Electricity price sensors (Energi Data Service, Nord Pool, Tibber…) report
   // a currency per kWh. Check this before the energy device class, because a

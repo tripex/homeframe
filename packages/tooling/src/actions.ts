@@ -1,6 +1,7 @@
 import type { HassState, ServiceCall } from "@homeframe/core";
 import type { CardActionRisk, DashboardCard, DashboardManifest, EntityBinding } from "@homeframe/sdk";
 import { getCard } from "./catalog.js";
+import { assertControlServiceCall, ServicePolicyError } from "./service-policy.js";
 
 /**
  * Input a screen may send along with a card action. Kept deliberately small:
@@ -36,7 +37,9 @@ export type CardActionFailure =
   | "no-bound-entities"
   | "entity-not-bound"
   | "invalid-input"
-  | "unsupported-action";
+  | "unsupported-action"
+  | "security-entity"
+  | "domain-not-allowed";
 
 /** Failure with an HTTP-friendly status and a stable machine-readable reason. */
 export class CardActionError extends Error {
@@ -218,10 +221,16 @@ export async function resolveCardAction(
     );
   }
 
-  return {
-    card: card.card,
-    actionId: request.actionId,
-    risk,
-    call: serviceCallFor(card, request.actionId, request.input ?? {}, states),
-  };
+  const call = serviceCallFor(card, request.actionId, request.input ?? {}, states);
+
+  try {
+    assertControlServiceCall(call, states);
+  } catch (error) {
+    if (error instanceof ServicePolicyError) {
+      throw new CardActionError(error.message, 403, error.reason);
+    }
+    throw error;
+  }
+
+  return { card: card.card, actionId: request.actionId, risk, call };
 }
