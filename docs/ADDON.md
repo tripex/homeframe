@@ -15,18 +15,22 @@ port is exposed on your network.
 4. Optionally set the options (below), then **Start** and enable
    **Show in sidebar**.
 
-On first start, with no dashboards yet, the add-on fills in the
-`home-tablet` template from your home. Open it on a wall tablet through the
-Home Assistant app or browser (the tablet's Home Assistant login is what
-protects it).
+The add-on fills in two templates from your home, each once, when missing:
+`home-tablet` (10" wall tablet, 1280×800) and `home-desktop` (27" monitor,
+2560×1440 or 1920×1080). Open Homeframe through the Home Assistant app or
+browser (the device's Home Assistant login is what protects it); a window
+wider than 1400 px shows `home-desktop`, a tablet `home-tablet`, and
+`?dashboard=<id>` picks one explicitly. Which auto dashboards were created is
+recorded in `/data/auto-dashboards.json`, so one you delete stays deleted and
+an update that adds a new screen creates only that one.
 
 ### Options
 
 | Option | Default | Meaning |
 | --- | --- | --- |
 | `allow_control` | `true` | Dashboards may switch lights, set climate targets and start/dock a vacuum. |
-| `locale` | `en` | Language of the first dashboard (`en` or `da`). |
-| `regenerate_dashboard` | `false` | Rebuild the auto-created `home-tablet` dashboard from the current template on every start (only while it is still template-generated). Turn on after an update, restart once, turn off. |
+| `locale` | `en` | Language of the dashboards the add-on creates (`en` or `da`). |
+| `regenerate_dashboard` | `false` | Rebuild every template dashboard (`generatedBy: homeframe-template:<template>`, e.g. `home-tablet` and `home-desktop`) from its current template on every start, and recreate a missing `home-tablet`/`home-desktop`. Dashboards made by an agent, the planner or by hand are never touched. Turn on after an update, restart once, turn off. |
 
 Why an option and not automatic: dashboards are installation data that
 agents and users refine (`add_card`, `set_binding`…), and the stored manifest

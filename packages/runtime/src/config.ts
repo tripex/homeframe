@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 /**
@@ -67,30 +67,88 @@ export type AddonOptions = {
   allow_control?: boolean;
   /** UI language for the dashboard created on first start. */
   locale?: string;
-  /** Rebuild the auto-created dashboard from the template on start. */
+  /** Rebuild every template-generated dashboard from its template on start. */
   regenerate_dashboard?: boolean;
 };
 
-/** Id of the dashboard the add-on creates from the home-tablet template. */
-export const AUTO_DASHBOARD_ID = "home-tablet";
+/**
+ * The dashboards the add-on creates by itself, one per kind of screen, each
+ * filled in from the template of the same name.
+ */
+export const AUTO_DASHBOARDS = [
+  { id: "home-tablet", template: "home-tablet", name: { en: "Home", da: "Hjem" } },
+  { id: "home-desktop", template: "home-desktop", name: { en: "Home · Desktop", da: "Hjem · Skrivebord" } },
+] as const;
+
+export type AutoDashboardId = (typeof AUTO_DASHBOARDS)[number]["id"];
+
+const TEMPLATE_PREFIX = "homeframe-template:";
+
+export type BootstrapStep = {
+  id: string;
+  template: string;
+  action: "create" | "regenerate";
+};
 
 /**
- * What the add-on does with the home-tablet template on start:
- * - `create` when there is no dashboard at all (first start),
- * - `regenerate` when the user asked for it and the `home-tablet` dashboard
- *   is still template-generated (a dashboard an agent or user rebuilt by
- *   other means is never overwritten), or is missing,
- * - `keep` otherwise. Other dashboards are never touched.
+ * What the add-on does with its dashboards on start.
+ *
+ * - Each auto dashboard (home-tablet, home-desktop) is created when it is
+ *   missing and has never been created before (`seeded`), so the first
+ *   start creates both, an update adds a new one once, and one the user
+ *   deleted on purpose stays deleted.
+ * - With `regenerate` (the `regenerate_dashboard` option) every dashboard
+ *   whose `generatedBy` is `homeframe-template:<template>` is rebuilt from
+ *   that template, and missing auto dashboards are created again.
+ *   Dashboards made by an agent, the planner or by hand are never touched.
+ *
+ * `seeded` is undefined before the add-on kept a record (0.3.x): a 0.3.x
+ * add-on created home-tablet on its first start, so an installation that
+ * already has dashboards counts home-tablet as created once.
  */
-export function firstDashboardAction(
+export function bootstrapPlan(
   dashboards: Array<{ id: string; generatedBy?: string }>,
-  regenerate: boolean,
-): "create" | "regenerate" | "keep" {
-  if (!dashboards.length) return "create";
-  if (!regenerate) return "keep";
-  const current = dashboards.find((dashboard) => dashboard.id === AUTO_DASHBOARD_ID);
-  if (!current) return "create";
-  return current.generatedBy?.startsWith("homeframe-template:") ? "regenerate" : "keep";
+  options: { regenerate: boolean; seeded?: string[] },
+): BootstrapStep[] {
+  const seeded = new Set(options.seeded ?? (dashboards.length ? ["home-tablet"] : []));
+  const existing = new Map(dashboards.map((dashboard) => [dashboard.id, dashboard]));
+  const steps: BootstrapStep[] = [];
+
+  for (const auto of AUTO_DASHBOARDS) {
+    if (existing.has(auto.id)) continue;
+    if (options.regenerate || !seeded.has(auto.id)) {
+      steps.push({ id: auto.id, template: auto.template, action: "create" });
+    }
+  }
+
+  if (options.regenerate) {
+    for (const dashboard of dashboards) {
+      if (!dashboard.generatedBy?.startsWith(TEMPLATE_PREFIX)) continue;
+      const template = dashboard.generatedBy.slice(TEMPLATE_PREFIX.length);
+      if (template) steps.push({ id: dashboard.id, template, action: "regenerate" });
+    }
+  }
+
+  return steps;
+}
+
+export function autoDashboardName(id: string, locale: string | undefined): string | undefined {
+  const auto = AUTO_DASHBOARDS.find((dashboard) => dashboard.id === id);
+  return auto ? (locale === "da" ? auto.name.da : auto.name.en) : undefined;
+}
+
+/** Which auto dashboards this add-on has created at some point. */
+export function readSeeded(dataDir: string): string[] | undefined {
+  try {
+    const record = JSON.parse(readFileSync(path.join(dataDir, "auto-dashboards.json"), "utf8")) as { seeded?: unknown };
+    return Array.isArray(record.seeded) ? record.seeded.filter((id): id is string => typeof id === "string") : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export function writeSeeded(dataDir: string, seeded: string[]): void {
+  writeFileSync(path.join(dataDir, "auto-dashboards.json"), `${JSON.stringify({ seeded: [...new Set(seeded)].sort() }, null, 2)}\n`);
 }
 
 export function readAddonOptions(dataDir: string): AddonOptions {

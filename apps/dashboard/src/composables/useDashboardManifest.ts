@@ -3,6 +3,12 @@ import type { DashboardManifest, DeviceProfileId } from "@homeframe/sdk";
 
 export type ManifestStatus = "idle" | "loading" | "ready" | "missing" | "error";
 
+export type DashboardView = { id: string; name: string; profile: DeviceProfileId };
+
+/**
+ * Which kind of screen this is, from the window size: a 1920+ wide desktop
+ * window gets the desktop dashboard, a 1280×800 wall tablet the tablet one.
+ */
 function inferProfile(): DeviceProfileId {
   const width = window.innerWidth;
   const height = window.innerHeight;
@@ -13,23 +19,39 @@ function inferProfile(): DeviceProfileId {
   return "desktop";
 }
 
+/**
+ * A desktop without a desktop dashboard (e.g. before the add-on created one)
+ * still shows the tablet's instead of the reference view. Smaller screens
+ * never borrow a bigger screen's dashboard.
+ */
+const FALLBACK: Partial<Record<DeviceProfileId, DeviceProfileId>> = { desktop: "tablet-10" };
+
 export function useDashboardManifest() {
   const manifest = ref<DashboardManifest>();
   const status = ref<ManifestStatus>("idle");
   const error = ref<string>();
   const selectedProfile = ref<DeviceProfileId>(inferProfile());
-  /** Other dashboards for the same kind of screen, listed in the side navigation. */
-  const views = ref<Array<{ id: string; name: string }>>([]);
+  /** Every saved dashboard, for the side navigation. */
+  const all = ref<DashboardView[]>([]);
 
-  async function loadViews(profile: DeviceProfileId): Promise<void> {
-    try {
-      const response = await fetch(`api/dashboards?profile=${encodeURIComponent(profile)}`);
-      if (!response.ok) return;
-      const dashboards = (await response.json()) as DashboardManifest[];
-      views.value = dashboards.map((dashboard) => ({ id: dashboard.id, name: dashboard.name }));
-    } catch {
-      views.value = [];
-    }
+  const shownProfile = computed(() => manifest.value?.target.profile ?? selectedProfile.value);
+  /** Dashboards for the same kind of screen as the one shown. */
+  const views = computed(() => all.value.filter((view) => view.profile === shownProfile.value));
+  /** Dashboards made for other screens (the tablet's, the desktop's…). */
+  const otherViews = computed(() =>
+    all.value.filter((view) => view.profile !== shownProfile.value && view.profile !== "mobile"),
+  );
+
+  async function fetchAll(): Promise<DashboardManifest[]> {
+    const response = await fetch("api/dashboards");
+    if (!response.ok) throw new Error(`Dashboard API returned ${response.status}`);
+    const dashboards = (await response.json()) as DashboardManifest[];
+    all.value = dashboards.map((dashboard) => ({
+      id: dashboard.id,
+      name: dashboard.name,
+      profile: dashboard.target.profile,
+    }));
+    return dashboards;
   }
 
   /** Switch dashboard without a reload; the URL keeps it bookmarkable. */
@@ -61,18 +83,14 @@ export function useDashboardManifest() {
         }
         manifest.value = (await response.json()) as DashboardManifest;
         status.value = "ready";
-        await loadViews(manifest.value.target.profile);
+        await fetchAll().catch(() => undefined);
         return;
       }
 
-      const response = await fetch(
-        `api/dashboards?profile=${encodeURIComponent(selectedProfile.value)}`,
-      );
-      if (!response.ok) throw new Error(`Dashboard API returned ${response.status}`);
-
-      const dashboards = (await response.json()) as DashboardManifest[];
-      manifest.value = dashboards[0];
-      views.value = dashboards.map((dashboard) => ({ id: dashboard.id, name: dashboard.name }));
+      const dashboards = await fetchAll();
+      const forProfile = (profile: DeviceProfileId | undefined) =>
+        dashboards.find((dashboard) => dashboard.target.profile === profile);
+      manifest.value = forProfile(selectedProfile.value) ?? forProfile(FALLBACK[selectedProfile.value]);
       status.value = manifest.value ? "ready" : "missing";
     } catch (reason) {
       // Vite-only development has no runtime API. The app deliberately falls
@@ -89,6 +107,7 @@ export function useDashboardManifest() {
     status,
     error,
     views,
+    otherViews,
     load,
     select,
   };

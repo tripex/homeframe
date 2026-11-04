@@ -108,7 +108,10 @@ node packages/cli/dist/cli.js dashboard plan \
 ### Fill in a designed template
 
 Templates in `catalog/templates` are hand-designed screens described with
-capability kinds only. `home-tablet` is a 1280×800 wall-tablet home screen.
+capability kinds only. `home-tablet` is a 1280×800 wall-tablet home screen;
+`home-desktop` is its richer sibling for a 27" monitor (2560×1440, also
+1920×1080): hero, locks, forecast, every thermostat, people, energy flow,
+agenda or vacuum, and a band of up to four cameras and up to eight rooms.
 
 ```bash
 node packages/cli/dist/cli.js templates list
@@ -116,6 +119,7 @@ node packages/cli/dist/cli.js templates list
 # Preview, then save; --locale sets the UI language (en, da)
 node packages/cli/dist/cli.js dashboard from-template home-tablet examples/home-snapshot.json --locale da
 node packages/cli/dist/cli.js dashboard from-template home-tablet live --id hall-tablet --name Hjem --locale da --save
+node packages/cli/dist/cli.js dashboard from-template home-desktop live --id office-desktop --name "Hjem · Skrivebord" --locale da --save
 ```
 
 `--save` refuses to overwrite an existing dashboard id unless `--replace` is

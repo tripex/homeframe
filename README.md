@@ -80,10 +80,18 @@ Built-in planning profiles:
 | `tablet-10` | 10-inch wall/tabletop tablet | 1280×800 landscape | 12 columns |
 | `nest-hub` | Google Nest Hub-style display | 1024×600 landscape | 8 columns |
 | `mobile` | phone | 390×844 portrait | 4 columns |
-| `desktop` | browser/large monitor | 1440×900 landscape | 12 columns |
+| `desktop` | 27" monitor / desktop browser (also 1920×1080) | 2560×1440 landscape | 16 columns |
 | `custom` | custom display | user-defined | 12 columns by default |
 
 The same Home Assistant entities can be reused across all of them while cards, priority and layout differ per screen.
+
+The dashboard picks the profile from the window: up to 1400 px wide is a
+tablet, wider (e.g. a 1920×1080 or 2560×1440 window) is a desktop;
+`?dashboard=<id>` or `?profile=<profile>` choose explicitly. The desktop
+profile has sixteen columns so a four-column camera tile is 16:9; its rows
+stretch to the window height and type scales with the window, so 2560×1440
+and 1920×1080 show the same composition without scrolling. Designed
+templates: `home-tablet` (tablet-10) and `home-desktop` (desktop).
 
 ![The same home on a 10-inch tablet at a snowy dawn, a Nest Hub on a clear night and a phone in the rain](docs/images/screens.webp)
 

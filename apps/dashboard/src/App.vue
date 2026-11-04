@@ -45,6 +45,7 @@ const {
   selectedProfile,
   status: manifestStatus,
   views,
+  otherViews,
   load: loadManifest,
   select: selectDashboard,
 } = useDashboardManifest();
@@ -82,6 +83,13 @@ const useSideNav = computed(() => {
 const navViews = computed(() =>
   views.value.map((view) => ({ ...view, active: view.id === manifest.value?.id })),
 );
+
+/**
+ * The desktop profile fills the window: its rows stretch to the screen
+ * height and desktop.css scales type and spacing with the window, so a 27"
+ * monitor at 2560×1440 and a 1920×1080 screen show the same composition.
+ */
+const isDesktop = computed(() => manifest.value?.target.profile === "desktop");
 
 /** People in the side navigation, read from the manifest's own list. */
 const navPeople = computed(() =>
@@ -126,9 +134,12 @@ const dashboardLabel = computed(() =>
   manifest.value ? manifest.value.name : isDemoBuild ? "Live demo" : `Reference · ${selectedProfile.value}`,
 );
 
-const gridStyle = computed(() => ({
-  gridTemplateColumns: `repeat(${manifest.value?.target.columns ?? 12}, minmax(0, 1fr))`,
-}));
+const gridStyle = computed(() => {
+  const columns = { gridTemplateColumns: `repeat(${manifest.value?.target.columns ?? 12}, minmax(0, 1fr))` };
+  if (!isDesktop.value || !manifest.value) return columns;
+  const rows = Math.max(1, ...manifest.value.cards.map((card) => (card.layout ? card.layout.y + card.layout.h : 0)));
+  return { ...columns, "--desktop-rows": String(rows) };
+});
 
 async function connectHomeAssistant(baseUrl: string, token: string): Promise<void> {
   await connect(baseUrl, token);
@@ -167,13 +178,14 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div v-if="manifest && useSideNav" class="app-shell tablet-shell">
+  <div v-if="manifest && useSideNav" class="app-shell tablet-shell" :class="{ 'desktop-shell': isDesktop }">
     <AtmosphereLayer :atmosphere="atmosphere" :mode="atmosphereMode" :quick="showSkySwitcher" />
 
     <SideNav
       :outdoor-temperature="weatherNow?.temperature"
       :outdoor-condition="weatherNow?.condition"
       :views="navViews"
+      :other-views="otherViews"
       :people="navPeople"
       @select="selectDashboard"
     />
@@ -198,7 +210,7 @@ onUnmounted(() => {
         <button type="button" class="dismiss-error" @click="actionError = undefined">✕</button>
       </p>
 
-      <section class="dashboard-grid manifest-grid tablet-grid" :style="gridStyle">
+      <section class="dashboard-grid manifest-grid tablet-grid" :class="{ 'desktop-grid': isDesktop }" :style="gridStyle">
         <ManifestCardRenderer
           v-for="card in manifest.cards"
           :key="card.instanceId"

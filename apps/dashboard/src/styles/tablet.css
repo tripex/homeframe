@@ -156,6 +156,9 @@
 .side-nav-views button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .side-nav-views button.active { background: rgba(255, 255, 255, 0.08); color: var(--text); }
 
+.side-nav-other h2 { margin: 0 0 4px; padding: 0 12px; color: #7f8998; font-size: 10px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; }
+.side-nav-other .side-nav-views button { padding: 8px 12px; font-size: 13px; }
+
 .side-nav-people { margin-top: auto !important; display: grid; gap: 8px; }
 .side-nav-people li { display: flex; align-items: center; gap: 10px; padding: 0 6px; color: #c9d1dc; font-size: 13px; }
 

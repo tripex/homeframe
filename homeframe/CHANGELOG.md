@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.4.0
+
+- New `home-desktop` dashboard for a 27" monitor (2560×1440, equally at
+  1920×1080): side navigation, the house as hero, locks, forecast, every
+  thermostat with current and target temperature, who is home, live energy
+  flow (with solar or a grid meter), agenda or vacuum, and a band of up to
+  four cameras and up to eight rooms. It fills the screen without
+  scrolling; type and spacing scale with the window for reading from a desk.
+- The add-on creates `home-tablet` and `home-desktop`, each once, when
+  missing: updating from 0.3.x adds `home-desktop` on the first start. A
+  dashboard you delete is not recreated.
+- `regenerate_dashboard` now rebuilds every template dashboard (also
+  `home-desktop` and dashboards made from a template with another id) and
+  still never touches dashboards made by an agent, the planner or by hand.
+- A browser window wider than 1400 px opens the desktop dashboard (the
+  tablet's when there is none); a 1280×800 tablet keeps `home-tablet`. The
+  side navigation links to the other screens' dashboards.
+- The `desktop` profile is now 2560×1440 with 16 columns (was 1440×900, 12).
+
 ## 0.3.2
 
 - The drawn house follows daylight instead of always looking like night.

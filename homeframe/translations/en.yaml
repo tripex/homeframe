@@ -8,11 +8,12 @@ configuration:
   locale:
     name: Language
     description: >-
-      Language of the dashboard created on first start (en or da). Existing
-      dashboards keep their own setting.
+      Language of the dashboards Homeframe creates by itself (en or da).
+      Other dashboards keep their own setting.
   regenerate_dashboard:
     name: Regenerate dashboard
     description: >-
-      Rebuild the auto-created home-tablet dashboard from the current template
-      on every start, e.g. after an update. Turn it off again afterwards to
-      keep your own edits. Other dashboards are never touched.
+      Rebuild every template dashboard (home-tablet, home-desktop and other
+      template dashboards) from its current template on every start, e.g.
+      after an update. Turn it off again afterwards to keep your own edits.
+      Dashboards made by an agent or by hand are never touched.

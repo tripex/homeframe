@@ -91,7 +91,7 @@ Homeframe currently ships these planning profiles:
 | `tablet-10` | 10-inch wall/tabletop tablet | 1280×800 landscape | 12 columns |
 | `nest-hub` | Google Nest Hub-style display | 1024×600 landscape | 8 columns |
 | `mobile` | phone | 390×844 portrait | 4 columns |
-| `desktop` | browser/large monitor | 1440×900 landscape | 12 columns |
+| `desktop` | 27" monitor / desktop browser (also 1920×1080) | 2560×1440 landscape | 16 columns |
 | `custom` | manually specified layout | user-defined | 12 columns by default |
 
 Different devices should normally get separate DashboardManifests. They may reuse the same Home Assistant bindings while showing different cards and layouts.

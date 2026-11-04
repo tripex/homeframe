@@ -305,7 +305,7 @@ serveStdio(() => {
     "list_templates",
     {
       description:
-        "List designed dashboard templates (e.g. home-tablet: hero house picture, status column, cameras, rooms). Templates contain capability kinds, never entity ids.",
+        "List designed dashboard templates (e.g. home-tablet for a 10\" wall tablet, home-desktop for a 27\" monitor: hero house picture, status column, cameras, rooms). Templates contain capability kinds, never entity ids.",
       inputSchema: z.object({}),
     },
     async () => text(await listTemplates()),

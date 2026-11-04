@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { House, LayoutDashboard, Thermometer } from "lucide-vue-next";
+import { House, LayoutDashboard, Monitor, Tablet, Thermometer } from "lucide-vue-next";
 import PersonAvatar from "../cards/PersonAvatar.vue";
 import type { PersonView } from "../cards/PresenceCard.vue";
 import { useI18n } from "../../i18n";
@@ -13,6 +13,8 @@ defineProps<{
   outdoorTemperature?: string;
   outdoorCondition?: string;
   views: Array<{ id: string; name: string; active: boolean }>;
+  /** Dashboards made for other screens, e.g. the wall tablet's on a desktop. */
+  otherViews?: Array<{ id: string; name: string; profile: string }>;
   people: PersonView[];
 }>();
 
@@ -39,6 +41,18 @@ const { t } = useI18n();
         </button>
       </li>
     </ul>
+
+    <section v-if="otherViews?.length" class="side-nav-other">
+      <h2>{{ t("nav.otherScreens") }}</h2>
+      <ul class="side-nav-views">
+        <li v-for="view in otherViews" :key="view.id">
+          <button type="button" @click="emit('select', view.id)">
+            <component :is="view.profile === 'desktop' ? Monitor : view.profile === 'tablet-10' ? Tablet : LayoutDashboard" :size="18" />
+            <span>{{ view.name }}</span>
+          </button>
+        </li>
+      </ul>
+    </section>
 
     <ul v-if="people.length" class="side-nav-people" :aria-label="t('nav.people')">
       <li v-for="person in people" :key="person.id" :title="`${person.name} · ${person.home ? t('presence.home') : t('presence.away')}`">

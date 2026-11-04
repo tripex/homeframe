@@ -1,0 +1,191 @@
+{
+  "id": "home-desktop",
+  "displayName": "Home desktop",
+  "description": "Desktop home screen for a 27\" monitor: side navigation, the house as a hero picture, a status column (locks, forecast, climate with every thermostat's current and target temperature, people), live energy flow when the home has solar or a grid meter, an agenda (or the vacuum), and a band of cameras and rooms along the bottom. Fills a 16:9 screen without scrolling.",
+  "aiSummary": "Use for a large landscape monitor (2560x1440 or 1920x1080) viewed from a desk; the richer sibling of home-tablet.",
+  "profile": "desktop",
+  "rows": 13,
+  "navigation": {
+    "style": "side",
+    "people": "person[]"
+  },
+  "regions": [
+    {
+      "id": "hero",
+      "x": 0,
+      "w": 8,
+      "stack": [
+        {
+          "instanceId": "home-scene",
+          "card": "home-scene",
+          "h": 7,
+          "grow": 13,
+          "bindings": {
+            "sun": "sun",
+            "weather": "weather",
+            "lock": "lock[]",
+            "light": "light[]",
+            "climate": "climate[]"
+          }
+        }
+      ]
+    },
+    {
+      "id": "status",
+      "x": 8,
+      "w": 4,
+      "stack": [
+        {
+          "instanceId": "lock-status",
+          "card": "security",
+          "h": 1,
+          "priority": 9,
+          "requires": [
+            "lock",
+            "alarm",
+            "garage"
+          ],
+          "bindings": {
+            "lock": "lock[]",
+            "alarm": "alarm[]",
+            "garage": "garage[]"
+          }
+        },
+        {
+          "instanceId": "forecast",
+          "card": "weather-forecast",
+          "h": 2,
+          "priority": 8,
+          "requires": [
+            "weather"
+          ],
+          "bindings": {
+            "weather": "weather"
+          },
+          "grow": 3
+        },
+        {
+          "instanceId": "climate-overview",
+          "card": "climate",
+          "h": 2,
+          "priority": 7,
+          "grow": 3,
+          "requires": [
+            "climate"
+          ],
+          "bindings": {
+            "climate": "climate[]"
+          }
+        },
+        {
+          "instanceId": "presence",
+          "card": "presence",
+          "h": 2,
+          "priority": 6,
+          "grow": 3,
+          "requires": [
+            "person"
+          ],
+          "bindings": {
+            "person": "person[]"
+          }
+        }
+      ]
+    },
+    {
+      "id": "side",
+      "x": 12,
+      "w": 4,
+      "stack": [
+        {
+          "instanceId": "energy-flow",
+          "card": "energy-flow",
+          "h": 5,
+          "priority": 9,
+          "requires": [
+            "solar_power",
+            "grid_power"
+          ],
+          "bindings": {
+            "solar_power": "solar_power",
+            "grid_power": "grid_power",
+            "battery_power": "battery_power",
+            "battery_level": "battery_level",
+            "ev_power": "ev_power",
+            "power": "power",
+            "energy": "energy",
+            "price": "price"
+          }
+        },
+        {
+          "instanceId": "agenda",
+          "card": "agenda",
+          "h": 2,
+          "priority": 8,
+          "grow": 13,
+          "requires": [
+            "calendar"
+          ],
+          "bindings": {
+            "calendar": "calendar[]"
+          },
+          "otherwise": [
+            {
+              "instanceId": "vacuum",
+              "card": "vacuum",
+              "requires": [
+                "vacuum"
+              ],
+              "bindings": {
+                "vacuum": "vacuum"
+              }
+            },
+            {
+              "instanceId": "agenda",
+              "card": "agenda",
+              "bindings": {
+                "calendar": "calendar[]"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "tiles",
+      "x": 0,
+      "span": 16,
+      "h": 3,
+      "maxRows": 2,
+      "tiles": [
+        {
+          "id": "camera",
+          "card": "camera",
+          "w": 4,
+          "maxW": 6,
+          "max": 4,
+          "repeat": {
+            "kind": "camera",
+            "binding": "camera"
+          }
+        },
+        {
+          "id": "room",
+          "card": "room",
+          "w": 3,
+          "maxW": 6,
+          "max": 8,
+          "repeat": {
+            "areas": true
+          },
+          "bindings": {
+            "temperature": "temperature",
+            "humidity": "humidity",
+            "light": "light[]",
+            "climate": "climate"
+          }
+        }
+      ]
+    }
+  ]
+}

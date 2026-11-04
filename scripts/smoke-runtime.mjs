@@ -348,6 +348,14 @@ try {
   assert.equal(bootstrapped.locale, "da");
   assert.equal(bootstrapped.name, "Hjem");
   assert.ok(bootstrapped.cards.some((card) => card.card === "home-scene"));
+  // …and home-desktop for a desktop monitor, recorded so it is made only once.
+  const desktop = await (await fetch(`${addonUrl}/api/dashboards/home-desktop`)).json();
+  assert.equal(desktop.target.profile, "desktop");
+  assert.equal(desktop.name, "Hjem · Skrivebord");
+  assert.equal(desktop.generatedBy, "homeframe-template:home-desktop");
+  assert.deepEqual(JSON.parse(await readFile(path.join(addonData, "auto-dashboards.json"), "utf8")).seeded, ["home-desktop", "home-tablet"]);
+  const desktopViews = await (await fetch(`${addonUrl}/api/dashboards?profile=desktop`)).json();
+  assert.deepEqual(desktopViews.map((dashboard) => dashboard.id), ["home-desktop"]);
 
   // Template → saved dashboard, from the home the add-on sees.
   const addonHome = await loadHomeSnapshot({ runtimeUrl: addonUrl, name: "Addon Home" });

@@ -9,6 +9,7 @@ import {
   createDashboardFromTemplate,
   getDashboard,
   homeSnapshotFromSemanticHome,
+  installationInfo,
   listDashboards,
   resolveCardAction,
   type CardActionRequest,
@@ -23,11 +24,14 @@ import {
   streamFile,
 } from "./card-data.js";
 import {
-  AUTO_DASHBOARD_ID,
-  firstDashboardAction,
+  AUTO_DASHBOARDS,
+  autoDashboardName,
+  bootstrapPlan,
   isAllowedIngressClient,
   readAddonOptions,
+  readSeeded,
   resolveConnection,
+  writeSeeded,
 } from "./config.js";
 import { EnergyRequestError, energyForCard } from "./energy.js";
 import { RuntimeHomeAssistant } from "./home-assistant.js";
@@ -63,38 +67,60 @@ await homeAssistant.start(connection);
 
 /**
  * An add-on user cannot easily run the CLI inside the container, so the
- * first start fills in the home-tablet template from the live home. Later
- * starts never touch existing dashboards, unless the user switches on the
- * `regenerate_dashboard` option: then the auto-created `home-tablet`
- * dashboard (and only that one, and only while it is still a template
- * dashboard) is rebuilt from the current template on every start, so
- * template fixes from an update reach the screen.
+ * add-on fills in its screens' templates from the live home: `home-tablet`
+ * and `home-desktop`, each once, when missing. Later starts never touch
+ * existing dashboards, unless the user switches on the
+ * `regenerate_dashboard` option: then every dashboard that is still a
+ * template dashboard is rebuilt from its current template on every start,
+ * so template fixes from an update reach the screen. See `bootstrapPlan`.
  */
-async function bootstrapFirstDashboard(): Promise<void> {
+async function bootstrapDashboards(): Promise<void> {
   if (!runningAsAddon || homeAssistant.snapshot().status !== "connected") return;
   const dashboards = await listDashboards();
-  const action = firstDashboardAction(dashboards, addonOptions.regenerate_dashboard === true);
-  if (action === "keep") return;
+  const dataDir = installationInfo().dataDir;
+  const seeded = readSeeded(dataDir);
+  const steps = bootstrapPlan(dashboards, {
+    regenerate: addonOptions.regenerate_dashboard === true,
+    seeded,
+  });
+
+  const created = new Set(seeded ?? (dashboards.length ? ["home-tablet"] : []));
+  for (const auto of AUTO_DASHBOARDS) if (dashboards.some((dashboard) => dashboard.id === auto.id)) created.add(auto.id);
+
+  if (steps.length) {
+    const home = homeSnapshotFromSemanticHome(homeAssistant.snapshot().semanticHome, "Home");
+    for (const step of steps) {
+      const current = dashboards.find((dashboard) => dashboard.id === step.id);
+      const autoName = autoDashboardName(step.id, addonOptions.locale);
+      try {
+        // Auto dashboards follow the add-on's language option; any other
+        // template dashboard keeps its own name and language.
+        const dashboard = await createDashboardFromTemplate(step.template, home, {
+          id: step.id,
+          name: autoName ?? current?.name,
+          locale: autoName ? addonOptions.locale : (current?.locale ?? addonOptions.locale),
+          replace: step.action === "regenerate",
+        });
+        if (autoName) created.add(step.id);
+        console.log(
+          step.action === "regenerate"
+            ? `Regenerated dashboard ${dashboard.id} from the ${step.template} template (turn regenerate_dashboard off to keep later edits)`
+            : `Created dashboard ${dashboard.id} from the ${step.template} template`,
+        );
+      } catch (error) {
+        console.error(`Could not build dashboard ${step.id}: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+  }
 
   try {
-    const home = homeSnapshotFromSemanticHome(homeAssistant.snapshot().semanticHome, "Home");
-    const dashboard = await createDashboardFromTemplate("home-tablet", home, {
-      id: AUTO_DASHBOARD_ID,
-      name: addonOptions.locale === "da" ? "Hjem" : "Home",
-      locale: addonOptions.locale,
-      replace: action === "regenerate",
-    });
-    console.log(
-      action === "regenerate"
-        ? `Regenerated dashboard ${dashboard.id} from the home-tablet template (turn regenerate_dashboard off to keep later edits)`
-        : `Created first dashboard ${dashboard.id} from the home-tablet template`,
-    );
+    writeSeeded(dataDir, [...created]);
   } catch (error) {
-    console.error(`Could not create a first dashboard: ${error instanceof Error ? error.message : String(error)}`);
+    console.error(`Could not record the created dashboards: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
-await bootstrapFirstDashboard();
+await bootstrapDashboards();
 
 const mime: Record<string, string> = {
   ".css": "text/css; charset=utf-8",

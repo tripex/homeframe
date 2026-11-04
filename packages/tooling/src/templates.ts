@@ -39,8 +39,8 @@ export type TemplateStackCard = {
   priority?: number;
   /**
    * Grow into rows left over in the budget, up to this many rows in total
-   * (never below `h`). One per region; a home without an energy card gets
-   * its usual tall agenda back.
+   * (never below `h`). Growing cards take what is left in listed order, so a
+   * home without an energy card gets its usual tall agenda back.
    */
   grow?: number;
 };
@@ -53,7 +53,8 @@ export type TemplateStackRegion = {
   /**
    * Height budget in grid rows. Cards that do not fit are left out, lowest
    * priority first, so an optional card (energy flow) can push out a less
-   * important one (forecast) instead of scrolling the screen.
+   * important one (forecast) instead of scrolling the screen. Without one,
+   * a template with `rows` gives every stack the rows above its tile band.
    */
   rows?: number;
   stack: TemplateStackCard[];
@@ -78,6 +79,37 @@ export type TemplateRepeatRegion = {
   bindings?: TemplateBindings;
 };
 
+/** One source of tiles in a tile band: every camera, every room… */
+export type TemplateTileSource = {
+  id: string;
+  card: string;
+  /** Natural width; a camera at its 16:9 size, a room card at its smallest. */
+  w: number;
+  /** Widest a tile may become while its row is stretched to the full span. */
+  maxW?: number;
+  max: number;
+  repeat: TemplateRepeatRegion["repeat"];
+  bindings?: TemplateBindings;
+};
+
+/**
+ * A band of equally tall tiles from several sources, packed left to right in
+ * source order (cameras, then rooms) into at most `maxRows` rows. Rows are
+ * balanced and stretched to the full span, so three cameras and a few rooms
+ * share the band without a gap. In a template with `rows` the band sits at
+ * the bottom of the screen and the stacks above get the rest.
+ */
+export type TemplateTileRegion = {
+  id: string;
+  x?: number;
+  span?: number;
+  h: number;
+  maxRows: number;
+  tiles: TemplateTileSource[];
+};
+
+export type TemplateRegion = TemplateStackRegion | TemplateRepeatRegion | TemplateTileRegion;
+
 export type DashboardTemplate = {
   id: string;
   displayName: string;
@@ -85,8 +117,14 @@ export type DashboardTemplate = {
   aiSummary: string;
   profile: DeviceProfileId;
   navigation?: { style?: "side" | "bottom"; people?: string };
-  /** Stacked regions share the top band; repeat rows follow below it in order. */
-  regions: Array<TemplateStackRegion | TemplateRepeatRegion>;
+  /**
+   * Screen height in grid rows for templates that fill the screen (the
+   * desktop grid stretches its rows to the window). Stacks without their
+   * own `rows` budget get what the tile bands leave.
+   */
+  rows?: number;
+  /** Stacked regions share the top band; repeat rows and tile bands follow below it. */
+  regions: TemplateRegion[];
 };
 
 export type TemplateOptions = {
@@ -140,8 +178,12 @@ function resolveBindings(
   return resolved;
 }
 
-function isStack(region: TemplateStackRegion | TemplateRepeatRegion): region is TemplateStackRegion {
+function isStack(region: TemplateRegion): region is TemplateStackRegion {
   return "stack" in region;
+}
+
+function isTiles(region: TemplateRegion): region is TemplateTileRegion {
+  return "tiles" in region;
 }
 
 type StackSlot = Omit<TemplateStackCard, "otherwise">;
@@ -151,7 +193,11 @@ type StackSlot = Omit<TemplateStackCard, "otherwise">;
  * slot's first alternative whose `requires` is met, keep slots by priority
  * within the `rows` budget, then let the `grow` slot absorb what is left.
  */
-function fitStack(region: TemplateStackRegion, lookup: (kind: string) => string[]): StackSlot[] {
+function fitStack(
+  region: TemplateStackRegion,
+  lookup: (kind: string) => string[],
+  budget: number | undefined = region.rows,
+): StackSlot[] {
   const met = (candidate: { requires?: string[] }) =>
     !candidate.requires || candidate.requires.some((kind) => lookup(kind).length);
 
@@ -170,21 +216,24 @@ function fitStack(region: TemplateStackRegion, lookup: (kind: string) => string[
     return [{ slot, index }];
   });
 
-  if (region.rows === undefined) return available.map(({ slot }) => slot);
+  if (budget === undefined) return available.map(({ slot }) => slot);
 
   let used = 0;
   const kept = new Set<number>();
   for (const { slot, index } of [...available].sort(
     (a, b) => (b.slot.priority ?? 0) - (a.slot.priority ?? 0) || a.index - b.index,
   )) {
-    if (used + slot.h > region.rows) continue;
+    if (used + slot.h > budget) continue;
     used += slot.h;
     kept.add(index);
   }
 
   const shown = available.filter(({ index }) => kept.has(index)).map(({ slot }) => ({ ...slot }));
-  const grower = shown.find((slot) => slot.grow !== undefined);
-  if (grower) grower.h = Math.max(grower.h, Math.min(grower.grow ?? grower.h, grower.h + region.rows - used));
+  for (const grower of shown.filter((slot) => slot.grow !== undefined)) {
+    const before = grower.h;
+    grower.h = Math.max(before, Math.min(grower.grow ?? before, before + budget - used));
+    used += grower.h - before;
+  }
   return shown;
 }
 
@@ -223,7 +272,9 @@ function tileRow(cards: DashboardCard[], region: TemplateRepeatRegion, columns: 
   return top + Math.ceil(cards.length / perRow) * region.h;
 }
 
-function repeatCards(region: TemplateRepeatRegion, home: HomeSnapshot): DashboardCard[] {
+type RepeatSource = Pick<TemplateRepeatRegion, "id" | "card" | "max" | "repeat" | "bindings">;
+
+function repeatCards(region: RepeatSource, home: HomeSnapshot): DashboardCard[] {
   if ("kind" in region.repeat) {
     const { kind, binding } = region.repeat;
     return homeEntities(home, kind)
@@ -255,6 +306,114 @@ function repeatCards(region: TemplateRepeatRegion, home: HomeSnapshot): Dashboar
     });
 }
 
+type Tile = { card: DashboardCard; w: number; maxW: number };
+
+/** Every way to cut `tiles` into `rows` consecutive, non-empty rows that each fit `span`. */
+function splits(tiles: Tile[], rows: number, span: number): Tile[][][] {
+  if (rows === 1) return tiles.reduce((sum, tile) => sum + tile.w, 0) <= span ? [[tiles]] : [];
+  const out: Tile[][][] = [];
+  let width = 0;
+  for (let cut = 1; cut <= tiles.length - rows + 1; cut += 1) {
+    width += tiles[cut - 1].w;
+    if (width > span) break;
+    for (const rest of splits(tiles.slice(cut), rows - 1, span)) out.push([tiles.slice(0, cut), ...rest]);
+  }
+  return out;
+}
+
+/** How badly a row has to stretch: columns it cannot fill, then the widest stretch. */
+function stretchCost(row: Tile[], span: number): [number, number] {
+  const natural = row.reduce((sum, tile) => sum + tile.w, 0);
+  const capacity = row.reduce((sum, tile) => sum + tile.maxW, 0);
+  return [Math.max(0, span - capacity), span / natural];
+}
+
+/** Widen the tiles of a row to the span, the least stretched tile first. */
+function stretchRow(row: Tile[], span: number): number[] {
+  const widths = row.map((tile) => tile.w);
+  let extra = span - widths.reduce((sum, w) => sum + w, 0);
+  while (extra > 0) {
+    let pick = -1;
+    row.forEach((tile, index) => {
+      if (widths[index] >= tile.maxW) return;
+      // Ties go to the later tile: rooms widen before cameras lose 16:9.
+      if (pick < 0 || widths[index] / tile.w <= widths[pick] / row[pick].w) pick = index;
+    });
+    if (pick < 0) break;
+    widths[pick] += 1;
+    extra -= 1;
+  }
+  return widths;
+}
+
+/**
+ * Pack a tile band: take tiles in source order while they fit `maxRows`
+ * rows, re-cut them into the most even rows and stretch each row to the
+ * span. Returns the number of grid rows the band needs.
+ */
+function packTiles(region: TemplateTileRegion, home: HomeSnapshot, columns: number): { rows: Tile[][]; height: number } {
+  const left = region.x ?? 0;
+  const span = Math.min(region.span ?? columns - left, columns - left);
+  const tiles: Tile[] = region.tiles.flatMap((source) =>
+    repeatCards(source, home).map((card) => ({
+      card,
+      w: Math.min(source.w, span),
+      maxW: Math.min(Math.max(source.maxW ?? source.w, source.w), span),
+    })),
+  );
+
+  // Greedy fill decides how many tiles fit in `limit` rows…
+  const fill = (limit: number) => {
+    const taken: Tile[] = [];
+    let rowCount = 0;
+    let used = span;
+    for (const tile of tiles) {
+      if (used + tile.w > span) {
+        if (rowCount === limit) continue;
+        rowCount += 1;
+        used = 0;
+      }
+      used += tile.w;
+      taken.push(tile);
+    }
+    return { taken, rowCount };
+  };
+
+  // …then they are re-cut into the most even rows.
+  const bestCut = (limit: number) => {
+    const { taken, rowCount } = fill(limit);
+    if (!taken.length) return undefined;
+    return splits(taken, rowCount, span)
+      .map((rows) => {
+        const costs = rows.map((row) => stretchCost(row, span));
+        return { rows, gap: costs.reduce((sum, [gap]) => sum + gap, 0), stretch: Math.max(...costs.map(([, s]) => s)) };
+      })
+      .sort((a, b) => a.gap - b.gap || a.stretch - b.stretch)[0];
+  };
+
+  // A row that cannot be filled (two cameras and three rooms) leaves a
+  // hole; one row fewer, with a tile left out, closes it.
+  let best = bestCut(region.maxRows);
+  for (let limit = (best?.rows.length ?? 0) - 1; best && best.gap > 0 && limit >= 1; limit -= 1) {
+    const fewer = bestCut(limit);
+    if (fewer && fewer.gap === 0) best = fewer;
+  }
+  if (!best) return { rows: [], height: 0 };
+  return { rows: best.rows, height: best.rows.length * region.h };
+}
+
+function placeTiles(region: TemplateTileRegion, rows: Tile[][], columns: number, top: number, out: DashboardCard[]): void {
+  const left = region.x ?? 0;
+  const span = Math.min(region.span ?? columns - left, columns - left);
+  rows.forEach((row, rowIndex) => {
+    let x = left;
+    stretchRow(row, span).forEach((w, index) => {
+      out.push({ ...row[index].card, layout: { x, y: top + rowIndex * region.h, w, h: region.h } });
+      x += w;
+    });
+  });
+}
+
 /**
  * Fill a template in from a HomeSnapshot. Pure, so it can be previewed
  * before anything is saved. Cards whose `requires` cannot be met are left out
@@ -271,11 +430,17 @@ export function instantiateTemplate(
   const lookup = (kind: string) => homeEntities(home, kind);
   const cards: DashboardCard[] = [];
 
+  // Tile bands are packed first: how many rows they need decides how much
+  // the stacks above them may use on a screen-filling template.
+  const bands = template.regions.filter(isTiles).map((region) => ({ region, ...packTiles(region, home, columns) }));
+  const bandRows = bands.reduce((sum, band) => sum + band.height, 0);
+  const stackBudget = template.rows === undefined ? undefined : Math.max(0, template.rows - bandRows);
+
   // Stacked regions sit side by side in the top band.
   const bottoms = new Map<string, number>();
   for (const region of template.regions.filter(isStack)) {
     let y = 0;
-    for (const slot of fitStack(region, lookup)) {
+    for (const slot of fitStack(region, lookup, region.rows ?? stackBudget)) {
       cards.push({
         instanceId: slot.instanceId,
         card: slot.card,
@@ -290,9 +455,17 @@ export function instantiateTemplate(
 
   // Repeat rows follow, each under a named region or under everything so far.
   for (const region of template.regions) {
-    if (isStack(region)) continue;
+    if (isStack(region) || isTiles(region)) continue;
     const top = region.below !== undefined ? (bottoms.get(region.below) ?? 0) : Math.max(0, ...bottoms.values());
     bottoms.set(region.id, tileRow(repeatCards(region, home), region, columns, top, cards));
+  }
+
+  // Tile bands close the screen: at its foot on a screen-filling template,
+  // otherwise under everything placed so far.
+  let bandTop = stackBudget ?? Math.max(0, ...bottoms.values());
+  for (const band of bands) {
+    placeTiles(band.region, band.rows, columns, bandTop, cards);
+    bandTop += band.height;
   }
 
   const homeName = home.name ?? "Home";

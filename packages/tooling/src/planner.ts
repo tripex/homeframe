@@ -54,12 +54,15 @@ const profiles: Record<Exclude<DeviceProfileId, "custom">, DashboardTarget> = {
     orientation: "portrait",
     columns: 4,
   },
+  // A 27" monitor (2560×1440, also 1920×1080). Sixteen columns keep cards
+  // at a familiar width on the wide screen: a camera tile of four columns is
+  // 16:9 and the home-desktop template fits four of them in a row.
   desktop: {
     profile: "desktop",
-    width: 1440,
-    height: 900,
+    width: 2560,
+    height: 1440,
     orientation: "landscape",
-    columns: 12,
+    columns: 16,
   },
 };
 

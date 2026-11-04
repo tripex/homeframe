@@ -1,0 +1,195 @@
+/*
+ * Desktop shell: the home-desktop template on a 27" monitor.
+ *
+ * Designed for 2560×1440 seen from about 70 cm and equally for 1920×1080:
+ * both are 16:9, so one composition serves both. Everything is sized in
+ * `--s`, a pixel that grows with the window (1.5px at 2560×1440, 1.125px at
+ * 1920×1080, never below 1px), and the grid's rows stretch to the window
+ * height, so the dashboard fills the screen without scrolling.
+ *
+ * Only `.desktop-shell` / `.desktop-grid` are touched; the tablet keeps
+ * tablet.css as it is.
+ */
+
+.desktop-shell {
+  --s: clamp(1px, min(100vw / 1707, 100vh / 960), 2.2px);
+  grid-template-columns: calc(212 * var(--s)) minmax(0, 1fr);
+  height: 100vh;
+  min-height: 0;
+}
+
+.desktop-shell .tablet-main {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding: calc(18 * var(--s)) calc(24 * var(--s)) calc(20 * var(--s)) calc(18 * var(--s));
+  overflow: hidden;
+}
+
+/* ---- Header ------------------------------------------------------------ */
+
+.desktop-shell .tablet-header { margin: 0 0 calc(14 * var(--s)); gap: calc(24 * var(--s)); }
+.desktop-shell .tablet-header h1 { font-size: calc(36 * var(--s)); }
+.desktop-shell .tablet-date { margin-top: calc(6 * var(--s)); font-size: calc(15 * var(--s)); }
+.desktop-shell .tablet-header-status { gap: calc(22 * var(--s)); }
+.desktop-shell .tablet-clock { font-size: calc(36 * var(--s)); }
+.desktop-shell .weather-now { font-size: calc(15 * var(--s)); gap: calc(8 * var(--s)); }
+.desktop-shell .weather-now strong { font-size: calc(22 * var(--s)); }
+.desktop-shell .tablet-error { margin-bottom: calc(10 * var(--s)); font-size: calc(13 * var(--s)); }
+
+/* ---- Grid: rows fill the window ---------------------------------------- */
+
+.desktop-grid.manifest-grid {
+  flex: 1;
+  min-height: 0;
+  grid-auto-rows: unset;
+  grid-template-rows: repeat(var(--desktop-rows, 13), minmax(0, 1fr));
+  gap: calc(11 * var(--s));
+}
+
+.desktop-grid .glass-card {
+  padding: calc(14 * var(--s)) calc(18 * var(--s));
+  border-radius: calc(20 * var(--s));
+}
+
+.desktop-grid .eyebrow { font-size: calc(11.5 * var(--s)); letter-spacing: 0.14em; }
+.desktop-grid .card-header { margin-bottom: calc(6 * var(--s)); }
+.desktop-grid .muted,
+.desktop-grid .card-empty { font-size: calc(13.5 * var(--s)); }
+
+/* Icons drawn as HTML follow the type; the energy-flow drawing scales as a whole. */
+:where(.desktop-grid .glass-card svg.lucide:not(.node-icon)),
+:where(.desktop-shell .side-nav svg.lucide),
+:where(.desktop-shell .tablet-header svg.lucide) {
+  width: 1.2em;
+  height: 1.2em;
+}
+
+/* ---- Room tiles (three rows tall) --------------------------------------- */
+
+.desktop-grid .room-card { display: flex; flex-direction: column; }
+.desktop-grid .room-card .room-top h2 { font-size: calc(18 * var(--s)); }
+.desktop-grid .room-card .room-top-actions { font-size: calc(15 * var(--s)); }
+.desktop-grid .room-card .metric-row {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: calc(10 * var(--s));
+  margin: 0;
+}
+.desktop-grid .room-card .hero-number { font-size: calc(46 * var(--s)); }
+.desktop-grid .room-card .hero-number.hero-number-text { font-size: calc(22 * var(--s)); }
+.desktop-grid .room-card .side-metric {
+  font-size: calc(17 * var(--s));
+  grid-template-columns: auto auto;
+  align-items: center;
+}
+.desktop-grid .room-card .side-metric svg.lucide { width: 1em; height: 1em; }
+.desktop-grid .room-card .card-footer {
+  display: flex;
+  padding-top: calc(10 * var(--s));
+  font-size: calc(13.5 * var(--s));
+}
+/* A room without a thermometer already shows its lights as the big line. */
+.desktop-grid .room-card:has(.hero-number-text) .card-footer { visibility: hidden; }
+.desktop-grid .room-card .status-dot { width: calc(8 * var(--s)); height: calc(8 * var(--s)); }
+.desktop-grid .room-card .card-toggle { width: calc(34 * var(--s)); height: calc(34 * var(--s)); }
+
+/* ---- Climate: every thermostat, current → target ------------------------- */
+
+.desktop-grid .zone { padding: calc(6 * var(--s)) 0; font-size: calc(15 * var(--s)); }
+.desktop-grid .zone-name { gap: calc(8 * var(--s)); }
+.desktop-grid .zone-target b { font-size: calc(19 * var(--s)); }
+.desktop-grid .zone-step { width: calc(30 * var(--s)); height: calc(30 * var(--s)); }
+
+/* ---- Lock status strip ---------------------------------------------------- */
+
+.desktop-grid .security-compact { gap: calc(12 * var(--s)); padding: 0 calc(20 * var(--s)) !important; font-size: calc(16 * var(--s)); }
+
+/* ---- Forecast ------------------------------------------------------------- */
+
+.desktop-grid .forecast-days { margin: auto 0; grid-template-columns: repeat(auto-fit, minmax(calc(56 * var(--s)), 1fr)); gap: calc(4 * var(--s)); }
+.desktop-grid .forecast-days li { font-size: calc(16 * var(--s)); gap: calc(4 * var(--s)); }
+.desktop-grid .forecast-day { font-size: calc(13.5 * var(--s)); }
+.desktop-grid .forecast-temps { gap: calc(6 * var(--s)); }
+.desktop-grid .forecast-temps .muted { font-size: inherit; }
+.desktop-grid .forecast-icon { width: calc(26 * var(--s)) !important; height: calc(26 * var(--s)) !important; }
+
+/* ---- Presence -------------------------------------------------------------- */
+
+.desktop-grid .presence-list { gap: calc(6 * var(--s)); margin-top: calc(8 * var(--s)); }
+.desktop-grid .presence-list li { gap: calc(12 * var(--s)); font-size: calc(16 * var(--s)); }
+.desktop-grid .presence-list small { font-size: calc(14 * var(--s)); }
+.desktop-grid .person-avatar { width: calc(30 * var(--s)); height: calc(30 * var(--s)); font-size: calc(12 * var(--s)); }
+
+/* ---- Agenda ---------------------------------------------------------------- */
+
+.desktop-grid .agenda-groups { gap: calc(10 * var(--s)); margin-top: calc(10 * var(--s)); }
+.desktop-grid .agenda-group h3 { font-size: calc(12 * var(--s)); margin-bottom: calc(4 * var(--s)); }
+.desktop-grid .agenda-event { gap: calc(12 * var(--s)); font-size: calc(15.5 * var(--s)); }
+.desktop-grid .agenda-when { width: calc(100 * var(--s)); }
+
+/* ---- Vacuum / appliances ------------------------------------------------------ */
+
+.desktop-grid .appliance-compact { gap: calc(16 * var(--s)); height: 100%; }
+.desktop-grid .appliance-compact-text { gap: calc(3 * var(--s)); }
+.desktop-grid .appliance-compact-text strong { font-size: calc(22 * var(--s)); }
+.desktop-grid .appliance-compact-text .eyebrow { font-size: calc(12.5 * var(--s)); }
+.desktop-grid .appliance-compact .appliance-icon { width: calc(28 * var(--s)); height: calc(28 * var(--s)); }
+.desktop-grid .appliance-state strong { font-size: calc(24 * var(--s)); }
+.desktop-grid .appliance-action,
+.desktop-grid .icon-button.appliance-action { width: calc(38 * var(--s)); height: calc(38 * var(--s)); }
+
+/* ---- Energy flow ------------------------------------------------------------- */
+
+.desktop-grid .energy-flow-card .room-top { font-size: calc(13 * var(--s)); }
+.desktop-grid .energy-flow-card .price-chip { font-size: calc(13 * var(--s)); padding: calc(5 * var(--s)) calc(10 * var(--s)); }
+.desktop-grid .energy-flow-card .flow-stage { margin: calc(2 * var(--s)) calc(-6 * var(--s)); }
+/* SVG text is in drawing units: the 360×300 drawing is already scaled up. */
+.desktop-grid .energy-flow-card .node-value { font-size: 16px; }
+.desktop-grid .energy-flow-card .node-unit { font-size: 11px; }
+.desktop-grid .energy-flow-card .node-label { font-size: 12px; }
+.desktop-grid .energy-flow-card .flow-footer { gap: calc(12 * var(--s)); padding-top: calc(10 * var(--s)); font-size: calc(13.5 * var(--s)); }
+.desktop-grid .energy-flow-card .footer-metric { gap: calc(2 * var(--s)); }
+.desktop-grid .energy-flow-card .footer-metric strong { font-size: calc(19 * var(--s)); }
+.desktop-grid .energy-flow-card .footer-metric span { font-size: calc(12.5 * var(--s)); }
+.desktop-grid .energy-flow-card .mini-ring { width: calc(36 * var(--s)); height: calc(36 * var(--s)); }
+
+/* ---- Home scene ----------------------------------------------------------------- */
+
+.desktop-grid .home-scene { border-radius: calc(22 * var(--s)); }
+.desktop-grid .home-scene-content { left: calc(24 * var(--s)); right: calc(24 * var(--s)); bottom: calc(22 * var(--s)); }
+.desktop-grid .home-scene-title { font-size: calc(26 * var(--s)); margin-bottom: calc(12 * var(--s)); }
+.desktop-grid .home-scene-chips { gap: calc(10 * var(--s)); }
+.desktop-grid .scene-chip { gap: calc(8 * var(--s)); padding: calc(9 * var(--s)) calc(15 * var(--s)); font-size: calc(15.5 * var(--s)); }
+
+/* ---- Cameras --------------------------------------------------------------------- */
+
+.desktop-grid .camera-label {
+  left: calc(12 * var(--s));
+  bottom: calc(12 * var(--s));
+  gap: calc(7 * var(--s));
+  padding: calc(6 * var(--s)) calc(12 * var(--s));
+  font-size: calc(14 * var(--s));
+}
+.desktop-grid .camera-placeholder { font-size: calc(14 * var(--s)); gap: calc(8 * var(--s)); }
+
+/* ---- Side navigation ------------------------------------------------------------------ */
+
+.desktop-shell .side-nav { gap: calc(24 * var(--s)); padding: calc(24 * var(--s)) calc(16 * var(--s)); }
+.desktop-shell .side-nav-outdoor { gap: calc(12 * var(--s)); padding: calc(4 * var(--s)) calc(8 * var(--s)); }
+.desktop-shell .side-nav-outdoor svg.lucide { width: calc(24 * var(--s)); height: calc(24 * var(--s)); }
+.desktop-shell .side-nav-outdoor strong { font-size: calc(32 * var(--s)); }
+.desktop-shell .side-nav-outdoor span { font-size: calc(13.5 * var(--s)); }
+.desktop-shell .side-nav-views { gap: calc(4 * var(--s)); }
+.desktop-shell .side-nav-views button {
+  gap: calc(12 * var(--s));
+  padding: calc(12 * var(--s)) calc(14 * var(--s));
+  border-radius: calc(14 * var(--s));
+  font-size: calc(16 * var(--s));
+}
+.desktop-shell .side-nav-other h2 { font-size: calc(11.5 * var(--s)); margin-bottom: calc(6 * var(--s)); padding: 0 calc(14 * var(--s)); }
+.desktop-shell .side-nav-people { gap: calc(10 * var(--s)); }
+.desktop-shell .side-nav-people li { gap: calc(12 * var(--s)); font-size: calc(15 * var(--s)); padding: 0 calc(8 * var(--s)); }
+.desktop-shell .side-nav-people .person-avatar { width: calc(38 * var(--s)) !important; height: calc(38 * var(--s)) !important; font-size: calc(13.5 * var(--s)) !important; }
