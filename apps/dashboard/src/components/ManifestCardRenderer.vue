@@ -11,6 +11,7 @@ import HomeSceneCard, { type SceneChip } from "./cards/HomeSceneCard.vue";
 import PresenceCard from "./cards/PresenceCard.vue";
 import ClimateCard from "./cards/ClimateCard.vue";
 import EnergyCard from "./cards/EnergyCard.vue";
+import EnergyFlowCard from "./cards/EnergyFlowCard.vue";
 import GlassCard from "./cards/GlassCard.vue";
 import RoomCard from "./cards/RoomCard.vue";
 import SecurityCard from "./cards/SecurityCard.vue";
@@ -267,6 +268,45 @@ const applianceDetail = computed(() => {
   return name && name !== applianceTitle.value ? name : undefined;
 });
 
+const hasBinding = (capability: string) => ids(props.card.bindings?.[capability]).length > 0;
+const cardProp = (name: string) => props.card.props?.[name];
+
+function signed(capability: string, invert: unknown): number | undefined {
+  const value = numericState(capability);
+  return value === undefined ? undefined : invert === true ? -value : value;
+}
+
+/** Convert kW sensors to W so the energy-flow card always receives watts. */
+function watts(capability: string, invert?: unknown): number | undefined {
+  const value = signed(capability, invert);
+  if (value === undefined) return undefined;
+  const unit = String(firstState(capability)?.attributes.unit_of_measurement ?? "").toLowerCase();
+  return unit === "kw" ? value * 1000 : value;
+}
+
+/**
+ * Place the current price within today's range. Energi Data Service and Nord
+ * Pool both expose today's prices as attributes; integrations that do not are
+ * simply shown without a level.
+ */
+const priceLevel = computed<"low" | "normal" | "high" | undefined>(() => {
+  const state = firstState("price");
+  const price = numericState("price");
+  if (!state || price === undefined) return undefined;
+
+  const today = Array.isArray(state.attributes.today)
+    ? (state.attributes.today as unknown[]).map(Number).filter(Number.isFinite)
+    : [];
+  const min = numericAttribute(state, "today_min") ?? numericAttribute(state, "min") ?? (today.length ? Math.min(...today) : undefined);
+  const max = numericAttribute(state, "today_max") ?? numericAttribute(state, "max") ?? (today.length ? Math.max(...today) : undefined);
+  if (min === undefined || max === undefined || max - min < 0.01) return undefined;
+
+  const position = (price - min) / (max - min);
+  if (position <= 0.33) return "low";
+  if (position >= 0.66) return "high";
+  return "normal";
+});
+
 const vacuumRunning = computed(() => applianceState.value?.state === "cleaning");
 
 function toggleLights(): void {
@@ -310,6 +350,27 @@ function returnVacuumHome(): void {
       :summary="energyHistory?.summary"
       :currency="energyHistory?.currency"
       :currency-label="energyHistory?.currencyLabel"
+    />
+
+    <EnergyFlowCard
+      v-else-if="card.card === 'energy-flow'"
+      :title="cardProp('title') ? String(cardProp('title')) : undefined"
+      :ev-name="cardProp('evName') ? String(cardProp('evName')) : undefined"
+      :currency="cardProp('currency') ? String(cardProp('currency')) : undefined"
+      :max-power-kw="Number(cardProp('maxPowerKw')) || undefined"
+      :has-solar="hasBinding('solar_power')"
+      :has-grid="hasBinding('grid_power')"
+      :has-battery="hasBinding('battery_power')"
+      :has-ev="hasBinding('ev_power')"
+      :solar-w="watts('solar_power')"
+      :grid-w="watts('grid_power', cardProp('invertGrid'))"
+      :battery-w="watts('battery_power', cardProp('invertBattery'))"
+      :battery-pct="numericState('battery_level')"
+      :ev-w="watts('ev_power')"
+      :home-w="watts('power')"
+      :today-kwh="numericState('energy')"
+      :price="numericState('price')"
+      :price-level="priceLevel"
     />
 
     <ClimateCard

@@ -7,6 +7,8 @@ import ClimateCard from "./components/cards/ClimateCard.vue";
 import EnergyCard from "./components/cards/EnergyCard.vue";
 import ForecastCard from "./components/cards/ForecastCard.vue";
 import PresenceCard from "./components/cards/PresenceCard.vue";
+import EnergyFlowCard from "./components/cards/EnergyFlowCard.vue";
+import { demoEnergyAt } from "./demo/demoHome";
 import RoomCard from "./components/cards/RoomCard.vue";
 import SecurityCard from "./components/cards/SecurityCard.vue";
 import AtmosphereLayer from "./components/atmosphere/AtmosphereLayer.vue";
@@ -98,6 +100,9 @@ const now = ref(new Date());
 const demoEnergy = demoEnergyHistory();
 const sampleForecast = demoForecast();
 const sampleAgenda = demoAgenda();
+// The energy-flow reference animates a simulated day so the flows move.
+const demoFlow = ref(demoEnergyAt(Date.now()));
+let demoFlowTimer: ReturnType<typeof setInterval> | undefined;
 const showConnectionModal = ref(false);
 let clockTimer: ReturnType<typeof setInterval> | undefined;
 
@@ -134,6 +139,10 @@ onMounted(async () => {
     now.value = new Date();
   }, 30_000);
 
+  demoFlowTimer = setInterval(() => {
+    demoFlow.value = demoEnergyAt(Date.now());
+  }, 1500);
+
   // The hosted demo is a static page: there is no runtime to ask.
   if (isDemoBuild) return;
 
@@ -152,6 +161,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   if (clockTimer) clearInterval(clockTimer);
+  if (demoFlowTimer) clearInterval(demoFlowTimer);
 });
 </script>
 
@@ -274,6 +284,15 @@ onUnmounted(() => {
           :watts="powerWatts ?? 1420"
           :summary="status === 'connected' ? undefined : demoEnergy.summary"
           :currency="demoEnergy.currency"
+        />
+        <EnergyFlowCard
+          v-bind="demoFlow"
+          :today-kwh="demoFlow.todayKwh"
+          ev-name="Car"
+          has-solar
+          has-grid
+          has-battery
+          has-ev
         />
         <ClimateCard v-if="climateZones.length" :zones="climateZones" />
         <ApplianceCard kind="washer" title="Washing machine" state="38 min remaining" detail="Reference surface" :progress="64" />

@@ -20,6 +20,28 @@ function normalized(value: unknown): string {
 }
 
 /**
+ * Split power sensors into the parts of an energy flow.
+ *
+ * Home Assistant only says "this is power" (device_class: power); it does not
+ * say whether the watts come from solar panels, the grid meter or a battery.
+ * Integration names are fairly consistent, so name matching is the pragmatic
+ * fallback. Anything unrecognised stays plain `power` (whole-home usage).
+ */
+function classifyPowerFlow(searchableName: string): CapabilityKind {
+  if (/solar|photovolt|\bpv\b|_pv_|pv_power|solcelle|inverter_power/.test(searchableName)) {
+    return "solar_power";
+  }
+  if (/batter|powerwall|husbatteri/.test(searchableName)) return "battery_power";
+  if (/(^|[._\s])ev([._\s]|$)|wallbox|easee|zaptec|charger|ladeboks|elbil/.test(searchableName)) {
+    return "ev_power";
+  }
+  if (/grid|\bp1\b|p1_|_han_|han_|elnet|net_power|utility_meter/.test(searchableName)) {
+    return "grid_power";
+  }
+  return "power";
+}
+
+/**
  * True for sensors whose unit is a price per kWh, e.g. "DKK/kWh", "€/kWh" or
  * "øre/kWh". The unit is the only reliable signal: price integrations do not
  * share a device class.
@@ -79,7 +101,7 @@ function classifyCapability(
   if (deviceClass === "temperature") return "temperature";
   if (deviceClass === "humidity") return "humidity";
   if (deviceClass === "illuminance") return "illuminance";
-  if (deviceClass === "power") return "power";
+  if (deviceClass === "power") return classifyPowerFlow(searchableName);
   if (deviceClass === "energy") return "energy";
   if (deviceClass === "window") return "window";
   // "garage_door" here is a binary_sensor device class, i.e. a contact sensor

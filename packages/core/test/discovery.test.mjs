@@ -171,6 +171,26 @@ test("diagnostic entity_category lowers the score", () => {
   assert.ok(diagnostic.score < plain.score);
 });
 
+test("power sensors are split into energy-flow roles by name", () => {
+  const power = { device_class: "power", unit_of_measurement: "W" };
+  const home = discoverHome(
+    buildSnapshot({
+      entities: [
+        { entity_id: "sensor.solaredge_ac_power", attributes: power },
+        { entity_id: "sensor.p1_meter_active_power", attributes: power },
+        { entity_id: "sensor.home_battery_power", attributes: power },
+        { entity_id: "sensor.easee_power", attributes: power },
+        { entity_id: "sensor.house_consumption", attributes: power },
+      ],
+    }),
+  );
+  assert.equal(findCapability(home, "sensor.solaredge_ac_power").kind, "solar_power");
+  assert.equal(findCapability(home, "sensor.p1_meter_active_power").kind, "grid_power");
+  assert.equal(findCapability(home, "sensor.home_battery_power").kind, "battery_power");
+  assert.equal(findCapability(home, "sensor.easee_power").kind, "ev_power");
+  assert.equal(findCapability(home, "sensor.house_consumption").kind, "power");
+});
+
 test("sun and weather entities become ambient capabilities", () => {
   const home = discoverHome(
     buildSnapshot({

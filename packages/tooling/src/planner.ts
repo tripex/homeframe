@@ -99,12 +99,14 @@ function cardWidth(card: string, columns: number): number {
   // A climate overview lists zones and reads well wide, but on a 12-column
   // screen it should leave room for one more card instead of a lonely row.
   if (card === "climate") return columns >= 12 ? 8 : columns;
+  if (card === "energy-flow") return columns <= 8 ? columns : 6;
   if (columns <= 8) return Math.min(4, columns);
   if (card === "room") return 4;
   return 4;
 }
 
-function cardHeight(card: string): number {
+function cardHeight(card: string, columns: number): number {
+  if (card === "energy-flow") return columns <= 4 ? 7 : 6;
   if (card === "climate") return 3;
   return 3;
 }
@@ -117,7 +119,7 @@ export function autoLayout(cards: DashboardCard[], columns: number): DashboardCa
 
   return cards.map((card) => {
     const w = Math.min(cardWidth(card.card, columns), columns);
-    const h = cardHeight(card.card);
+    const h = cardHeight(card.card, columns);
 
     if (x + w > columns) {
       x = 0;
@@ -172,11 +174,32 @@ function globalCards(home: HomeSnapshot): DashboardCard[] {
   const global = home.capabilities ?? {};
   const cards: DashboardCard[] = [];
 
+  // A home with a grid meter or solar production gets the live energy-flow
+  // card; a plain whole-home power sensor keeps the compact energy card.
+  const flowBindings = bindingsFrom(global, [
+    "solar_power",
+    "grid_power",
+    "battery_power",
+    "battery_level",
+    "ev_power",
+    "power",
+    "energy",
+  ]);
   const energyBindings = bindingsFrom(global, ["power", "energy"]);
   // A price is only useful next to consumption, and only one price can apply.
   const price = global.price?.[0];
-  if (price) energyBindings.price = price;
-  if (energyBindings.power) {
+  if (price) {
+    flowBindings.price = price;
+    energyBindings.price = price;
+  }
+  if (flowBindings.solar_power || flowBindings.grid_power) {
+    cards.push({
+      instanceId: "energy-flow",
+      card: "energy-flow",
+      size: "wide",
+      bindings: flowBindings,
+    });
+  } else if (energyBindings.power) {
     cards.push({
       instanceId: "energy-overview",
       card: "energy",
