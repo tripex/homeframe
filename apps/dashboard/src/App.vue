@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { tidyName } from "@homeframe/core";
 import { House, Settings2, Sparkles, Wifi, WifiOff } from "lucide-vue-next";
 import { computed, onMounted, onUnmounted, ref, watchEffect } from "vue";
 import ApplianceCard from "./components/cards/ApplianceCard.vue";
@@ -88,7 +89,7 @@ const navPeople = computed(() =>
     const state = states.value.get(entityId);
     return {
       id: entityId,
-      name: String(state?.attributes.friendly_name ?? entityId.split(".")[1] ?? entityId),
+      name: tidyName(String(state?.attributes.friendly_name ?? entityId.split(".")[1] ?? entityId)),
       home: state?.state === "home",
     };
   }),

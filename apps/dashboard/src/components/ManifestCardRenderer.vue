@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import type { DashboardCard, EntityBinding } from "@homeframe/sdk";
 import type { AgendaEvent, Atmosphere, ForecastDay, HassState } from "@homeframe/core";
+import { cameraTitle as streamlessTitle, tidyName } from "@homeframe/core";
 import type { AtmosphereMode } from "@homeframe/sdk";
 import AgendaCard from "./cards/AgendaCard.vue";
 import ApplianceCard from "./cards/ApplianceCard.vue";
@@ -101,7 +102,7 @@ const climateZones = computed(() =>
     return [
       {
         id: entityId,
-        name: String(state.attributes.friendly_name ?? entityId),
+        name: tidyName(String(state.attributes.friendly_name ?? entityId)),
         current,
         target,
         heating: state.attributes.hvac_action === "heating",
@@ -123,13 +124,18 @@ const applianceKind = computed<"washer" | "dryer" | "vacuum">(() =>
       ? "dryer"
       : "washer",
 );
+// Friendly names can repeat the device name ("L50 Ultra  L50 Ultra").
 const applianceTitle = computed(() =>
-  String(
-    props.card.props?.title ??
-      applianceState.value?.attributes.friendly_name ??
-      (applianceKind.value === "vacuum" ? "Robot vacuum" : "Appliance"),
+  tidyName(
+    String(
+      props.card.props?.title ??
+        applianceState.value?.attributes.friendly_name ??
+        (applianceKind.value === "vacuum" ? "Robot vacuum" : "Appliance"),
+    ),
   ),
 );
+// Two grid rows or fewer: one line of title, state and buttons.
+const compactAppliance = computed(() => (props.card.layout?.h ?? 3) <= 2);
 
 /**
  * Overall state of the bound locks, alarms and garages. Status only: the
@@ -236,7 +242,9 @@ const sceneImage = computed(() => String(props.card.props?.image ?? "home"));
 
 const cameraId = computed(() => ids(props.card.bindings?.camera)[0]);
 const cameraTitle = computed(() =>
-  String(props.card.props?.title ?? firstState("camera")?.attributes.friendly_name ?? cameraId.value ?? ""),
+  props.card.props?.title !== undefined
+    ? String(props.card.props.title)
+    : streamlessTitle(String(firstState("camera")?.attributes.friendly_name ?? cameraId.value ?? "")),
 );
 
 const agendaEvents = computed(() =>
@@ -251,7 +259,7 @@ const people = computed(() =>
     const state = props.states.get(entityId);
     return {
       id: entityId,
-      name: String(state?.attributes.friendly_name ?? entityId.split(".")[1] ?? entityId),
+      name: tidyName(String(state?.attributes.friendly_name ?? entityId.split(".")[1] ?? entityId)),
       home: state?.state === "home",
     };
   }),
@@ -264,7 +272,7 @@ function numberProp(name: string): number | undefined {
 
 // The friendly name is often the title already; never show it twice.
 const applianceDetail = computed(() => {
-  const name = String(applianceState.value?.attributes.friendly_name ?? "");
+  const name = tidyName(String(applianceState.value?.attributes.friendly_name ?? ""));
   return name && name !== applianceTitle.value ? name : undefined;
 });
 
@@ -387,6 +395,7 @@ function returnVacuumHome(): void {
       :title="applianceTitle"
       :state="applianceState?.state ?? 'Unavailable'"
       :detail="applianceDetail"
+      :compact="compactAppliance"
       :controllable="canControl"
       :running="vacuumRunning"
       :pending="isPending(card.instanceId, 'start-pause') || isPending(card.instanceId, 'return-home')"

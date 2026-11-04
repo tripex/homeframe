@@ -91,6 +91,28 @@
 .tablet-grid .room-card .card-footer { display: none; }
 .tablet-grid .room-card .card-toggle { width: 30px; height: 30px; }
 
+/* A two-row appliance (vacuum) card: icon, name and state, buttons. */
+.appliance-compact { display: flex; align-items: center; gap: 14px; }
+.appliance-compact .appliance-icon { flex: none; color: #c9d1dc; }
+.appliance-compact-text { display: grid; gap: 2px; min-width: 0; flex: 1; }
+.appliance-compact-text .eyebrow { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.appliance-compact-text strong { font-size: 19px; font-weight: 600; }
+.appliance-compact .appliance-actions { margin-top: 0; }
+
+/*
+ * Energy flow in the 4×5 status slot: the eyebrow is the title, the diagram
+ * takes the room the heading and roomy footer would use, and labels grow so
+ * they stay readable once the 360×300 drawing is scaled down.
+ */
+.tablet-grid .energy-flow-card .room-top h2 { display: none; }
+.tablet-grid .energy-flow-card .flow-stage { margin: 0 -10px; }
+.tablet-grid .energy-flow-card .flow-canvas { max-height: none; }
+.tablet-grid .energy-flow-card .node-value { font-size: 16px; }
+.tablet-grid .energy-flow-card .node-unit { font-size: 11px; }
+.tablet-grid .energy-flow-card .node-label { font-size: 12px; }
+.tablet-grid .energy-flow-card .flow-footer { padding-top: 8px; }
+.tablet-grid .energy-flow-card .mini-ring { width: 30px; height: 30px; }
+
 /* ---- Side navigation --------------------------------------------------- */
 
 .side-nav {

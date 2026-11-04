@@ -10,6 +10,8 @@ const props = defineProps<{
   state: string;
   detail?: string;
   progress?: number;
+  /** A two-row slot: title, state and buttons on one line. */
+  compact?: boolean;
   controllable?: boolean;
   running?: boolean;
   pending?: boolean;
@@ -41,7 +43,35 @@ const icons = {
 </script>
 
 <template>
-  <GlassCard>
+  <GlassCard v-if="compact" className="appliance-card appliance-compact">
+    <component :is="icons[props.kind]" :size="21" class="appliance-icon" />
+    <div class="appliance-compact-text">
+      <span class="eyebrow">{{ title }}</span>
+      <strong>{{ stateLabel }}</strong>
+    </div>
+    <div v-if="kind === 'vacuum' && controllable" class="appliance-actions">
+      <button
+        type="button"
+        class="icon-button appliance-action"
+        :disabled="pending"
+        :aria-label="running ? 'Pause vacuum' : 'Start vacuum'"
+        @click="$emit('start-pause')"
+      >
+        <component :is="running ? Pause : Play" :size="15" />
+      </button>
+      <button
+        type="button"
+        class="icon-button appliance-action"
+        :disabled="pending"
+        aria-label="Send vacuum home"
+        @click="$emit('return-home')"
+      >
+        <Home :size="15" />
+      </button>
+    </div>
+  </GlassCard>
+
+  <GlassCard v-else className="appliance-card">
     <div class="room-top">
       <div>
         <span class="eyebrow">{{ eyebrow }}</span>

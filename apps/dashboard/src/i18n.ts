@@ -89,6 +89,18 @@ const en = {
   "weather.sunny": "Sunny",
   "weather.windy": "Windy",
   "weather.windy-variant": "Windy",
+  "energyFlow.eyebrow": "ENERGY",
+  "energyFlow.title": "Energy flow",
+  "energyFlow.solar": "Solar",
+  "energyFlow.grid": "Grid",
+  "energyFlow.selling": "Selling",
+  "energyFlow.home": "Home",
+  "energyFlow.battery": "Battery",
+  "energyFlow.selfSufficient": "self-sufficient now",
+  "energyFlow.usedToday": "used today",
+  "energyFlow.cheapNow": "Cheap now",
+  "energyFlow.expensiveNow": "Expensive now",
+  "energyFlow.spotPrice": "Spot price",
 };
 
 export type MessageKey = keyof typeof en;
@@ -174,6 +186,18 @@ const da: Partial<Record<MessageKey, string>> = {
   "weather.sunny": "Sol",
   "weather.windy": "Blæsende",
   "weather.windy-variant": "Blæsende",
+  "energyFlow.eyebrow": "ENERGI",
+  "energyFlow.title": "Energiflow",
+  "energyFlow.solar": "Sol",
+  "energyFlow.grid": "Net",
+  "energyFlow.selling": "Sælger",
+  "energyFlow.home": "Hjem",
+  "energyFlow.battery": "Batteri",
+  "energyFlow.selfSufficient": "selvforsynende nu",
+  "energyFlow.usedToday": "brugt i dag",
+  "energyFlow.cheapNow": "Billig nu",
+  "energyFlow.expensiveNow": "Dyr nu",
+  "energyFlow.spotPrice": "Spotpris",
 };
 
 const dictionaries: Record<string, Partial<Record<MessageKey, string>>> = { en, da };

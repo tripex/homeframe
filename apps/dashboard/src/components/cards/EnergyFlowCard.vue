@@ -10,6 +10,7 @@ import {
   Zap,
 } from "lucide-vue-next";
 import GlassCard from "./GlassCard.vue";
+import { useI18n } from "../../i18n";
 import {
   computeEnergyFlow,
   flowSpeed,
@@ -45,12 +46,15 @@ const props = withDefaults(
     maxPowerKw?: number;
   }>(),
   {
-    title: "Energy flow",
+    title: undefined,
     currency: "kr/kWh",
     evName: "EV",
     maxPowerKw: 8,
   },
 );
+
+const { t } = useI18n();
+const heading = computed(() => props.title ?? t("energyFlow.title"));
 
 const model = computed(() =>
   computeEnergyFlow({
@@ -84,6 +88,10 @@ const flowPaths: Record<FlowKey, { d: string; tone: string; visible: () => boole
 };
 
 const flowKeys = Object.keys(flowPaths) as FlowKey[];
+
+// Without a battery or EV the bottom of the drawing is empty; crop it so the
+// diagram scales up in short slots such as the tablet's status column.
+const viewBox = computed(() => (props.hasBattery || props.hasEv ? "0 0 360 300" : "0 8 360 208"));
 const visibleFlows = computed(() => flowKeys.filter((key) => flowPaths[key].visible()));
 
 const ACTIVE_THRESHOLD_W = 15;
@@ -197,9 +205,9 @@ const priceText = computed(() =>
   props.price === undefined ? undefined : `${props.price.toFixed(2)} ${props.currency}`,
 );
 const priceHint = computed(() => {
-  if (props.priceLevel === "low") return "Cheap now";
-  if (props.priceLevel === "high") return "Expensive now";
-  return "Spot price";
+  if (props.priceLevel === "low") return t("energyFlow.cheapNow");
+  if (props.priceLevel === "high") return t("energyFlow.expensiveNow");
+  return t("energyFlow.spotPrice");
 });
 </script>
 
@@ -207,8 +215,8 @@ const priceHint = computed(() => {
   <GlassCard className="energy-flow-card">
     <div class="room-top">
       <div>
-        <span class="eyebrow">ENERGY</span>
-        <h2>{{ title }}</h2>
+        <span class="eyebrow">{{ t("energyFlow.eyebrow") }}</span>
+        <h2>{{ heading }}</h2>
       </div>
       <span v-if="priceText" class="price-chip" :class="priceLevel ?? 'normal'">
         <Zap :size="13" />
@@ -220,7 +228,7 @@ const priceHint = computed(() => {
     <div class="flow-stage">
       <svg
         class="flow-canvas"
-        viewBox="0 0 360 300"
+        :viewBox="viewBox"
         preserveAspectRatio="xMidYMid meet"
         role="img"
         :aria-label="`Home uses ${homeLabel.value} ${homeLabel.unit}, ${selfSufficiencyPct}% self-sufficient`"
@@ -242,7 +250,7 @@ const priceHint = computed(() => {
           <text :x="nodes.solar.x" :y="nodes.solar.y + 9" class="node-value">
             {{ solarLabel.value }}<tspan class="node-unit"> {{ solarLabel.unit }}</tspan>
           </text>
-          <text :x="nodes.solar.x + 44" :y="nodes.solar.y + 4" class="node-label start">Solar</text>
+          <text :x="nodes.solar.x + 44" :y="nodes.solar.y + 4" class="node-label start">{{ t("energyFlow.solar") }}</text>
         </g>
 
         <!-- Grid -->
@@ -253,7 +261,7 @@ const priceHint = computed(() => {
             {{ gridLabel.value }}<tspan class="node-unit"> {{ gridLabel.unit }}</tspan>
           </text>
           <text :x="nodes.grid.x" :y="nodes.grid.y + 48" class="node-label">
-            {{ exporting ? "Selling" : "Grid" }}
+            {{ exporting ? t("energyFlow.selling") : t("energyFlow.grid") }}
           </text>
         </g>
 
@@ -276,7 +284,7 @@ const priceHint = computed(() => {
           <text :x="nodes.home.x" :y="nodes.home.y + 9" class="node-value">
             {{ homeLabel.value }}<tspan class="node-unit"> {{ homeLabel.unit }}</tspan>
           </text>
-          <text :x="nodes.home.x" :y="nodes.home.y - 44" class="node-label">Home</text>
+          <text :x="nodes.home.x" :y="nodes.home.y - 44" class="node-label">{{ t("energyFlow.home") }}</text>
         </g>
 
         <!-- Battery -->
@@ -293,7 +301,7 @@ const priceHint = computed(() => {
             {{ batteryLabel.value }}<tspan class="node-unit"> {{ batteryLabel.unit }}</tspan>
           </text>
           <text :x="nodes.battery.x - 44" :y="nodes.battery.y + 4" class="node-label end">
-            {{ batteryPct !== undefined ? `${Math.round(batteryPct)}%` : "Battery" }}
+            {{ batteryPct !== undefined ? `${Math.round(batteryPct)}%` : t("energyFlow.battery") }}
           </text>
         </g>
 
@@ -323,11 +331,11 @@ const priceHint = computed(() => {
       </svg>
       <div class="footer-metric">
         <strong>{{ selfSufficiencyPct }}%</strong>
-        <span>self-sufficient now</span>
+        <span>{{ t("energyFlow.selfSufficient") }}</span>
       </div>
       <div v-if="todayKwh !== undefined" class="footer-metric right">
         <strong>{{ todayKwh.toFixed(1) }} kWh</strong>
-        <span>used today</span>
+        <span>{{ t("energyFlow.usedToday") }}</span>
       </div>
     </div>
   </GlassCard>
