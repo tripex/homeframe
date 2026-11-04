@@ -27,7 +27,7 @@ const lightsLabel = computed(() => {
 });
 
 const formattedTemperature = computed(() =>
-  props.temperature === undefined ? "—" : number(Math.round(props.temperature * 10) / 10),
+  props.temperature === undefined ? "" : number(Math.round(props.temperature * 10) / 10),
 );
 </script>
 
@@ -55,9 +55,14 @@ const formattedTemperature = computed(() =>
     </div>
 
     <div class="metric-row">
-      <div>
+      <div v-if="temperature !== undefined">
         <strong class="hero-number">{{ formattedTemperature }}°</strong>
         <span class="metric-label">{{ t("room.temperature") }}</span>
+      </div>
+      <!-- Without a room thermometer the lights are the most useful fact;
+           a bare "—°" reads like a broken sensor. -->
+      <div v-else>
+        <strong class="hero-number hero-number-text">{{ lightsLabel }}</strong>
       </div>
 
       <div v-if="humidity !== undefined" class="side-metric">

@@ -204,6 +204,16 @@
 .house-windows rect { fill: #1a222e; transition: fill 1.5s ease; }
 .house-windows.lit rect { fill: #ffcf8a; filter: drop-shadow(0 0 10px rgba(255, 190, 110, 0.75)); }
 
+/* The drawn house follows the sky: in daylight it is lit by the sun, not a
+   silhouette, and lamps only glow faintly against the bright windows. */
+.home-scene:not(.home-scene-night) .house-ground { fill: #2c3a2f; }
+.home-scene:not(.home-scene-night) .house-body { fill: #5b6676; stroke: rgba(255, 255, 255, 0.12); }
+.home-scene:not(.home-scene-night) .house-roof { stroke: #3a4352; }
+.home-scene:not(.home-scene-night) .house-chimney { fill: #4a5363; }
+.home-scene:not(.home-scene-night) .house-door { fill: #343c49; }
+.home-scene:not(.home-scene-night) .house-windows rect { fill: #9fb4c8; }
+.home-scene:not(.home-scene-night) .house-windows.lit rect { fill: #e9d3a8; filter: none; }
+
 /* Keeps chips readable on any photo. */
 .home-scene-shade {
   position: absolute;
@@ -315,3 +325,6 @@
 .presence-list small { margin-left: auto; }
 
 .card-empty { margin: auto 0; color: var(--muted); font-size: 13px; }
+
+.hero-number.hero-number-text { font-size: 22px; letter-spacing: -0.02em; font-weight: 560; padding-top: 4px; }
+.tablet-grid .room-card .hero-number.hero-number-text { font-size: 18px; }
