@@ -62,8 +62,8 @@ function groupCapabilities(capabilities: Capability[]): CapabilityMap {
  * be unit-tested without a Home Assistant connection.
  */
 export function homeSnapshotFromSemanticHome(home: SemanticHome, name?: string): HomeSnapshot {
-  const globalCapabilities = groupCapabilities(home.unassigned);
   const areas: HomeAreaSnapshot[] = [];
+  const homeLevel: Capability[] = [...home.unassigned];
 
   for (const area of home.areas) {
     const capabilities = groupCapabilities(area.capabilities);
@@ -76,11 +76,19 @@ export function homeSnapshotFromSemanticHome(home: SemanticHome, name?: string):
     areas.push({ id: area.id, name: area.name, capabilities });
 
     for (const capability of area.capabilities) {
-      if (HOME_LEVEL_KINDS.includes(capability.kind)) {
-        addCapability(globalCapabilities, capability);
-      }
+      if (HOME_LEVEL_KINDS.includes(capability.kind)) homeLevel.push(capability);
     }
   }
+
+  // Templates and the planner take the first entity of a kind, so the best
+  // one must lead: the whole-home load before a plug, an online main camera
+  // before an offline one. The sort is stable, so ties keep the old order
+  // (unassigned first, then areas in registry order).
+  const globalCapabilities = groupCapabilities(
+    homeLevel.map((capability, index) => ({ capability, index }))
+      .sort((a, b) => b.capability.score - a.capability.score || a.index - b.index)
+      .map(({ capability }) => capability),
+  );
 
   return {
     name: name ?? "Home",

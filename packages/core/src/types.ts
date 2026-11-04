@@ -32,6 +32,20 @@ export type EntityRegistryEntry = {
   hidden_by?: string | null;
   disabled_by?: string | null;
   entity_category?: string | null;
+  has_entity_name?: boolean;
+};
+
+/**
+ * A Home Assistant login (`config/auth/list`, admin only). Discovery uses it
+ * to tell household members from integration/service accounts.
+ */
+export type AuthUserEntry = {
+  id: string;
+  name?: string | null;
+  system_generated?: boolean;
+  is_active?: boolean;
+  /** Can only log in from the local network: typical for service accounts. */
+  local_only?: boolean;
 };
 
 /** Everything semantic discovery needs from Home Assistant at one point in time. */
@@ -40,6 +54,8 @@ export type RegistrySnapshot = {
   devices: DeviceRegistryEntry[];
   entities: EntityRegistryEntry[];
   states: HassState[];
+  /** Optional: only readable with an admin token. */
+  users?: AuthUserEntry[];
 };
 
 export type CapabilityKind =
@@ -90,6 +106,8 @@ export type Capability = {
   deviceClass?: string;
   unit?: string;
   score: number;
+  /** Home Assistant device the entity belongs to, if any. */
+  deviceId?: string;
 };
 
 export type DiscoveredArea = {

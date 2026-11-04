@@ -33,6 +33,16 @@ A capability still keeps its entity ID at this boundary because Homeframe eventu
 
 Discovery is deliberately heuristic. Home Assistant installations vary widely, so future versions will combine registry metadata, device classes, integration information, user bindings and optional AI-assisted suggestions.
 
+Conservative rules that keep a generated screen honest (all entities stay bindable by id):
+
+- **One camera per device.** Integrations such as UniFi Protect expose several streams per camera (high/medium/low resolution, insecure, a doorbell's package camera). The best stream — main/high resolution, online — stays `camera`; the others become `generic`.
+- **People are household members.** A person with a device tracker always counts. One without a tracker is left out only on evidence that it is a service login: its Home Assistant user is system-generated, deactivated or `local_only` (read via `config/auth/list` when the token is admin), or, without the user list, its name is a well-known service (`mqtt`, `node-red`…).
+- **Room temperatures are air temperatures.** Temperature sensors that are diagnostic/config, named like equipment (inverter, CPU, battery, chip, internal…) or read outside −30…45 °C are `generic`; a room with only such sensors shows no temperature rather than a wrong one. The range is wider than indoors on purpose: outdoor areas read below zero in winter.
+- **Power without a device class.** A sensor in W/kW without `device_class` (common for ESPHome inverter loggers) is still power and joins the energy flow by name (`pv…` solar, `grid…` grid). A `binary_sensor` with device class power is on/off, not watts. Whole-home load sensors outrank single plugs, and home-wide capability lists are ordered by score, so templates bind the best sensor first.
+- **Names.** Labels collapse an exactly repeated leading phrase ("L50 Ultra L50 Ultra") and fall back to the device name when `has_entity_name` is set without an entity name.
+
+Templates (`catalog/templates`) can give a stacked column a `rows` budget: cards are kept by `priority` until it is full and one card may `grow` into what is left. The home-tablet status column uses this to fit the energy-flow card (when solar or grid power exists) by dropping the lowest-priority climate overview and shrinking the agenda/vacuum slot to two rows.
+
 ## 3. Framework contracts — `packages/sdk`
 
 The SDK defines stable data structures that cards, dashboard manifests and tools can share.

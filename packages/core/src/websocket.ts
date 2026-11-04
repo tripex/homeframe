@@ -186,7 +186,13 @@ export class HomeAssistantClient {
 
     this.states = new Map(states.map((state) => [state.entity_id, state]));
 
-    return { areas, devices, entities, states };
+    // The user list needs an admin token (the add-on's Supervisor token is
+    // one). Without it discovery falls back to name rules for people.
+    const users = await this.callWebSocket<RegistrySnapshot["users"]>({ type: "config/auth/list" }).catch(
+      () => undefined,
+    );
+
+    return { areas, devices, entities, states, ...(users ? { users } : {}) };
   }
 
   async subscribeToStates(listener: StateListener): Promise<() => void> {
