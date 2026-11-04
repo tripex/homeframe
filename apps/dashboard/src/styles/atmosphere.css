@@ -38,6 +38,9 @@
 
 .atmosphere > * { position: absolute; inset: 0; }
 
+/* A sky inside a card, e.g. the home scene when no house photo exists. */
+.atmosphere.atmosphere-contained { position: absolute; z-index: 0; border-radius: inherit; }
+
 .atmosphere-sky {
   background: linear-gradient(
     to bottom,

@@ -9,6 +9,8 @@ const props = defineProps<{
   mode: AtmosphereMode;
   /** Ease between skies in about a second instead of a minute (sky previews). */
   quick?: boolean;
+  /** Fill the nearest positioned parent (e.g. a card) instead of the viewport. */
+  contained?: boolean;
 }>();
 
 type Palette = { top: string; mid: string; horizon: string; glow: string };
@@ -129,7 +131,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="atmosphere" :class="[`atmosphere-${mode}`, { 'atmosphere-settled': settled, 'atmosphere-quick': quick }]" :style="skyStyle" aria-hidden="true">
+  <div class="atmosphere" :class="[`atmosphere-${mode}`, { 'atmosphere-settled': settled, 'atmosphere-quick': quick, 'atmosphere-contained': contained }]" :style="skyStyle" aria-hidden="true">
     <div class="atmosphere-sky" />
     <div class="atmosphere-light" />
     <div v-if="showMoon" class="atmosphere-moon" />

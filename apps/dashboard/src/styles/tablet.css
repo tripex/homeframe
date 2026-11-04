@@ -1,0 +1,293 @@
+/*
+ * Tablet shell (side navigation) and the cards introduced with the
+ * home-tablet template. Sized for a 1280×800 landscape wall tablet: the hero
+ * band and the status column fit on one screen, cameras and rooms follow.
+ */
+
+.tablet-shell {
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  min-height: 100vh;
+  padding-bottom: 0;
+}
+
+.tablet-main {
+  max-width: none;
+  margin: 0;
+  padding: 18px 22px 24px 14px;
+  min-width: 0;
+}
+
+.tablet-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  margin: 2px 0 14px;
+}
+
+.tablet-header h1 {
+  margin: 0;
+  font-size: 34px;
+  font-weight: 650;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.tablet-date {
+  margin: 6px 0 0;
+  color: #c2cad6;
+  font-size: 14px;
+}
+
+.tablet-date::first-letter { text-transform: uppercase; }
+
+.tablet-header-status { display: flex; align-items: baseline; gap: 18px; }
+
+.tablet-clock {
+  font-size: 34px;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.tablet-error { margin: 0 0 12px; }
+
+/*
+ * 12 rows of 46px + 10px gaps (662px) plus the header fit a 1280×800 screen,
+ * which is exactly the home-tablet template: a 7-row hero band, a 3-row
+ * camera row and a 2-row room row.
+ */
+.tablet-grid.manifest-grid {
+  grid-auto-rows: 46px;
+  gap: 10px;
+}
+
+/* Cards are denser on the tablet grid than in the reference view. */
+.tablet-grid .glass-card { padding: 13px 16px; border-radius: 18px; min-height: 0; overflow: hidden; }
+.tablet-grid .glass-card:hover { transform: none; }
+.tablet-grid .card-header { margin-bottom: 4px; }
+.tablet-grid .zone { padding: 5px 0; }
+
+/* Long lists fade out instead of being cut mid-line. */
+.tablet-grid .zone-list,
+.tablet-grid .agenda-groups {
+  overflow: hidden;
+  min-height: 0;
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 18px), transparent);
+}
+.tablet-grid .climate-card { display: flex; flex-direction: column; }
+
+/* A two-row room card: name and lights on top, temperature below. */
+.tablet-grid .room-card { display: grid; grid-template-rows: auto 1fr; }
+.tablet-grid .room-card .eyebrow,
+.tablet-grid .room-card .metric-label,
+.tablet-grid .room-card .side-metric span { display: none; }
+.tablet-grid .room-card .room-top h2 { margin: 0; font-size: 15px; }
+.tablet-grid .room-card .metric-row { margin: 4px 0 0; align-items: center; }
+.tablet-grid .room-card .hero-number { font-size: 28px; }
+.tablet-grid .room-card .side-metric { grid-template-columns: auto auto; justify-content: end; align-items: center; }
+.tablet-grid .room-card .card-footer { display: none; }
+.tablet-grid .room-card .card-toggle { width: 30px; height: 30px; }
+
+/* ---- Side navigation --------------------------------------------------- */
+
+.side-nav {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  padding: 22px 14px;
+  background: rgba(10, 13, 19, 0.55);
+  border-right: 1px solid var(--border);
+  backdrop-filter: blur(30px);
+}
+
+.side-nav ul { list-style: none; margin: 0; padding: 0; }
+
+.side-nav-outdoor { display: flex; align-items: center; gap: 10px; padding: 4px 8px; }
+.side-nav-outdoor div { display: grid; }
+.side-nav-outdoor strong { font-size: 28px; font-weight: 600; letter-spacing: -0.03em; line-height: 1.05; }
+.side-nav-outdoor span { color: #b8c0cd; font-size: 12px; }
+
+.side-nav-views { display: grid; gap: 4px; }
+
+.side-nav-views button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 11px 12px;
+  border: 0;
+  border-radius: 13px;
+  background: transparent;
+  color: #9aa3b2;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.side-nav-views button span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.side-nav-views button.active { background: rgba(255, 255, 255, 0.08); color: var(--text); }
+
+.side-nav-people { margin-top: auto !important; display: grid; gap: 8px; }
+.side-nav-people li { display: flex; align-items: center; gap: 10px; padding: 0 6px; color: #c9d1dc; font-size: 13px; }
+
+.person-avatar {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+  border: 2px solid rgba(255, 255, 255, 0.12);
+  color: #8f98a8;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.person-avatar.home { border-color: rgba(123, 220, 255, 0.75); color: var(--text); background: rgba(123, 220, 255, 0.14); }
+
+/* ---- Home scene -------------------------------------------------------- */
+
+.home-scene {
+  position: relative;
+  padding: 0 !important;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.home-scene-photo {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: filter 2s ease;
+}
+
+.home-scene-photo.dimmed { filter: brightness(0.45) saturate(0.7) hue-rotate(10deg); }
+
+.home-scene-house { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 72%; z-index: 1; }
+.house-ground { fill: #0b0f15; }
+.house-body { fill: #121822; stroke: rgba(255, 255, 255, 0.06); }
+.house-roof { fill: none; stroke: #1d2531; stroke-width: 8; stroke-linejoin: round; stroke-linecap: round; }
+.house-chimney { fill: #151c27; }
+.house-door { fill: #0d1219; }
+.house-windows rect { fill: #1a222e; transition: fill 1.5s ease; }
+.house-windows.lit rect { fill: #ffcf8a; filter: drop-shadow(0 0 10px rgba(255, 190, 110, 0.75)); }
+
+/* Keeps chips readable on any photo. */
+.home-scene-shade {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  background: linear-gradient(to top, rgba(5, 7, 11, 0.72) 0%, rgba(5, 7, 11, 0.15) 38%, transparent 60%);
+  pointer-events: none;
+}
+
+.home-scene-content {
+  position: absolute;
+  left: 20px;
+  right: 20px;
+  bottom: 18px;
+  z-index: 3;
+}
+
+.home-scene-title { margin: 0 0 10px; font-size: 22px; letter-spacing: -0.02em; }
+
+.home-scene-chips { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; margin: 0; padding: 0; }
+
+.scene-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(12, 16, 23, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(16px);
+  font-size: 13px;
+  color: #eef2f7;
+}
+
+.scene-chip-attention { border-color: rgba(255, 178, 107, 0.55); color: #ffd2a6; }
+
+/* ---- Compact security (lock status) -------------------------------------- */
+
+.security-compact { display: flex !important; align-items: center; gap: 10px; padding: 0 18px !important; font-size: 14px; }
+.security-compact strong { margin-left: auto; color: #b9e9d2; }
+.security-compact.security-attention strong { color: #ffb26b; }
+.security-compact.security-review strong { color: #c9d1dc; }
+
+/* ---- Camera ------------------------------------------------------------ */
+
+.camera-card { position: relative; padding: 0 !important; overflow: hidden; }
+.camera-still { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+
+.camera-placeholder {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.camera-label {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  background: rgba(8, 11, 16, 0.66);
+  backdrop-filter: blur(10px);
+  font-size: 12px;
+}
+
+.camera-stale { color: #ffb26b; }
+
+/* ---- Forecast ------------------------------------------------------------ */
+
+.forecast-card { display: flex; flex-direction: column; }
+
+.forecast-days {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(48px, 1fr));
+  gap: 4px;
+  list-style: none;
+  margin: auto 0 0;
+  padding: 0;
+}
+
+.forecast-days li { display: grid; justify-items: center; gap: 2px; font-size: 13px; font-variant-numeric: tabular-nums; }
+.forecast-temps { display: flex; gap: 5px; }
+.forecast-day { color: #b8c0cd; font-size: 12px; text-transform: capitalize; }
+.forecast-icon { color: #dfe6ef; }
+
+/* ---- Agenda -------------------------------------------------------------- */
+
+.agenda-card { display: flex; flex-direction: column; }
+.agenda-groups { flex: 1; display: grid; align-content: start; gap: 6px; margin-top: 8px; overflow: hidden; }
+.agenda-group h3 { margin: 0 0 2px; color: #9099a8; font-size: 11px; font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; }
+
+.agenda-event { display: flex; gap: 10px; margin: 0; font-size: 13px; line-height: 1.5; min-width: 0; }
+.agenda-when { flex: none; width: 70px; color: #9aa3b2; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.agenda-summary { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* ---- Presence ------------------------------------------------------------ */
+
+.presence-list { display: grid; gap: 10px; list-style: none; margin: 12px 0 0; padding: 0; }
+.presence-list li { display: flex; align-items: center; gap: 10px; font-size: 14px; }
+.presence-list small { margin-left: auto; }
+
+.card-empty { margin: auto 0; color: var(--muted); font-size: 13px; }

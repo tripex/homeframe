@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Flame, Minus, Plus } from "lucide-vue-next";
 import GlassCard from "./GlassCard.vue";
+import { useI18n } from "../../i18n";
 
 defineProps<{
   zones: Array<{
@@ -14,6 +15,8 @@ defineProps<{
   pending?: boolean;
 }>();
 
+const { t, number } = useI18n();
+
 const emit = defineEmits<{
   "set-temperature": [{ zoneId: string | undefined; temperature: number }];
 }>();
@@ -26,7 +29,7 @@ function step(zoneId: string | undefined, target: number, delta: number): void {
 </script>
 
 <template>
-  <GlassCard className="climate-card" eyebrow="CLIMATE" title="Floor heating">
+  <GlassCard className="climate-card" :eyebrow="t('climateCard.eyebrow')">
     <div class="zone-list">
       <div v-for="zone in zones" :key="zone.name" class="zone">
         <span class="zone-name">
@@ -35,8 +38,8 @@ function step(zoneId: string | undefined, target: number, delta: number): void {
         </span>
 
         <span class="zone-target">
-          <b>{{ zone.current.toFixed(1) }}°</b>
-          <span class="muted"> → {{ zone.target.toFixed(1) }}°</span>
+          <b>{{ number(zone.current) }}°</b>
+          <span class="muted"> → {{ number(zone.target) }}°</span>
 
           <span v-if="controllable" class="zone-controls">
             <button

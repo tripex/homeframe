@@ -18,6 +18,27 @@ export function useDashboardManifest() {
   const status = ref<ManifestStatus>("idle");
   const error = ref<string>();
   const selectedProfile = ref<DeviceProfileId>(inferProfile());
+  /** Other dashboards for the same kind of screen, listed in the side navigation. */
+  const views = ref<Array<{ id: string; name: string }>>([]);
+
+  async function loadViews(profile: DeviceProfileId): Promise<void> {
+    try {
+      const response = await fetch(`api/dashboards?profile=${encodeURIComponent(profile)}`);
+      if (!response.ok) return;
+      const dashboards = (await response.json()) as DashboardManifest[];
+      views.value = dashboards.map((dashboard) => ({ id: dashboard.id, name: dashboard.name }));
+    } catch {
+      views.value = [];
+    }
+  }
+
+  /** Switch dashboard without a reload; the URL keeps it bookmarkable. */
+  async function select(id: string): Promise<void> {
+    const url = new URL(window.location.href);
+    url.searchParams.set("dashboard", id);
+    window.history.replaceState(null, "", url);
+    await load();
+  }
 
   const dashboardId = computed(() => manifest.value?.id);
 
@@ -33,23 +54,25 @@ export function useDashboardManifest() {
       if (explicitProfile) selectedProfile.value = explicitProfile;
 
       if (explicitId) {
-        const response = await fetch(`/api/dashboards/${encodeURIComponent(explicitId)}`);
+        const response = await fetch(`api/dashboards/${encodeURIComponent(explicitId)}`);
         if (!response.ok) {
           status.value = "missing";
           return;
         }
         manifest.value = (await response.json()) as DashboardManifest;
         status.value = "ready";
+        await loadViews(manifest.value.target.profile);
         return;
       }
 
       const response = await fetch(
-        `/api/dashboards?profile=${encodeURIComponent(selectedProfile.value)}`,
+        `api/dashboards?profile=${encodeURIComponent(selectedProfile.value)}`,
       );
       if (!response.ok) throw new Error(`Dashboard API returned ${response.status}`);
 
       const dashboards = (await response.json()) as DashboardManifest[];
       manifest.value = dashboards[0];
+      views.value = dashboards.map((dashboard) => ({ id: dashboard.id, name: dashboard.name }));
       status.value = manifest.value ? "ready" : "missing";
     } catch (reason) {
       // Vite-only development has no runtime API. The app deliberately falls
@@ -65,6 +88,8 @@ export function useDashboardManifest() {
     selectedProfile,
     status,
     error,
+    views,
     load,
+    select,
   };
 }

@@ -1,14 +1,18 @@
 <script setup lang="ts">
 import { House, Settings2, Sparkles, Wifi, WifiOff } from "lucide-vue-next";
-import { computed, onMounted, onUnmounted, ref } from "vue";
+import { computed, onMounted, onUnmounted, ref, watchEffect } from "vue";
 import ApplianceCard from "./components/cards/ApplianceCard.vue";
+import AgendaCard from "./components/cards/AgendaCard.vue";
 import ClimateCard from "./components/cards/ClimateCard.vue";
 import EnergyCard from "./components/cards/EnergyCard.vue";
+import ForecastCard from "./components/cards/ForecastCard.vue";
+import PresenceCard from "./components/cards/PresenceCard.vue";
 import RoomCard from "./components/cards/RoomCard.vue";
 import SecurityCard from "./components/cards/SecurityCard.vue";
 import AtmosphereLayer from "./components/atmosphere/AtmosphereLayer.vue";
 import SkySwitcher from "./components/demo/SkySwitcher.vue";
 import BottomNav from "./components/layout/BottomNav.vue";
+import SideNav from "./components/layout/SideNav.vue";
 import ManifestCardRenderer from "./components/ManifestCardRenderer.vue";
 import ConnectionModal from "./components/settings/ConnectionModal.vue";
 import { isDemoBuild, useAtmosphere } from "./composables/useAtmosphere";
@@ -17,6 +21,8 @@ import { useDashboardData } from "./composables/useDashboardData";
 import { useDashboardManifest } from "./composables/useDashboardManifest";
 import { useHomeAssistant } from "./composables/useHomeAssistant";
 import { demoEnergyHistory } from "./demo/demoEnergy";
+import { demoAgenda, demoForecast, demoPeople } from "./demo/demoTablet";
+import { setLocale, useI18n } from "./i18n";
 
 const {
   status,
@@ -35,51 +41,71 @@ const {
   manifest,
   selectedProfile,
   status: manifestStatus,
+  views,
   load: loadManifest,
+  select: selectDashboard,
 } = useDashboardManifest();
 const { lastError: actionError, loadStatus: loadActionStatus } = useDashboardActions();
 const { atmosphere, mode: atmosphereMode } = useAtmosphere(manifest, states, semanticHome);
 const showSkySwitcher = isDemoBuild || new URLSearchParams(window.location.search).has("preview");
 
-const CONDITION_LABELS: Record<string, string> = {
-  "clear-night": "Clear",
-  cloudy: "Cloudy",
-  exceptional: "Unusual weather",
-  fog: "Fog",
-  hail: "Hail",
-  lightning: "Thunder",
-  "lightning-rainy": "Thunderstorm",
-  partlycloudy: "Partly cloudy",
-  pouring: "Heavy rain",
-  rainy: "Rain",
-  snowy: "Snow",
-  "snowy-rainy": "Sleet",
-  sunny: "Sunny",
-  windy: "Windy",
-  "windy-variant": "Windy",
-};
+const { t, has, time, longDate, number } = useI18n();
+
+// The manifest decides the language; ?lang=da previews one without editing it.
+watchEffect(() => {
+  setLocale(manifest.value?.locale ?? new URLSearchParams(window.location.search).get("lang") ?? undefined);
+});
 
 const weatherNow = computed(() => {
   const { temperature, condition } = atmosphere.value;
   if (temperature === undefined && !condition) return undefined;
+  const conditionKey = `weather.${condition}`;
   return {
-    temperature: temperature === undefined ? undefined : `${Math.round(temperature)}°`,
-    condition: condition ? CONDITION_LABELS[condition] ?? condition : undefined,
+    temperature: temperature === undefined ? undefined : `${number(Math.round(temperature))}°`,
+    condition: condition ? (has(conditionKey) ? t(conditionKey) : condition) : undefined,
   };
 });
+
+/**
+ * Tablets and desktops get the side navigation; phones keep the bottom bar.
+ * A manifest can choose explicitly with `navigation.style`.
+ */
+const useSideNav = computed(() => {
+  const style = manifest.value?.navigation?.style;
+  if (style) return style === "side";
+  return manifest.value ? ["tablet-10", "desktop"].includes(manifest.value.target.profile) : false;
+});
+
+const navViews = computed(() =>
+  views.value.map((view) => ({ ...view, active: view.id === manifest.value?.id })),
+);
+
+/** People in the side navigation, read from the manifest's own list. */
+const navPeople = computed(() =>
+  (manifest.value?.navigation?.people ?? []).map((entityId) => {
+    const state = states.value.get(entityId);
+    return {
+      id: entityId,
+      name: String(state?.attributes.friendly_name ?? entityId.split(".")[1] ?? entityId),
+      home: state?.state === "home",
+    };
+  }),
+);
 
 const now = ref(new Date());
 // The reference view shows a full energy day so the card can be judged
 // without Home Assistant; manifests always use real runtime history.
 const demoEnergy = demoEnergyHistory();
+const sampleForecast = demoForecast();
+const sampleAgenda = demoAgenda();
 const showConnectionModal = ref(false);
 let clockTimer: ReturnType<typeof setInterval> | undefined;
 
 const greeting = computed(() => {
   const hour = now.value.getHours();
-  if (hour < 12) return "Good morning";
-  if (hour < 18) return "Good afternoon";
-  return "Good evening";
+  if (hour < 12) return t("greeting.morning");
+  if (hour < 18) return t("greeting.afternoon");
+  return t("greeting.evening");
 });
 
 const discoveryLabel = computed(() => {
@@ -115,7 +141,9 @@ onMounted(async () => {
   await loadActionStatus();
 
   const runtimeConnected = await connectRuntime();
-  if (!runtimeConnected) {
+  // A browser-held token is a development convenience only. Production builds
+  // talk to Home Assistant exclusively through the runtime.
+  if (!runtimeConnected && import.meta.env.DEV) {
     const baseUrl = import.meta.env.VITE_HA_URL;
     const token = import.meta.env.VITE_HA_TOKEN;
     if (baseUrl && token) await connect(baseUrl, token);
@@ -128,7 +156,54 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="app-shell">
+  <div v-if="manifest && useSideNav" class="app-shell tablet-shell">
+    <AtmosphereLayer :atmosphere="atmosphere" :mode="atmosphereMode" :quick="showSkySwitcher" />
+
+    <SideNav
+      :outdoor-temperature="weatherNow?.temperature"
+      :outdoor-condition="weatherNow?.condition"
+      :views="navViews"
+      :people="navPeople"
+      @select="selectDashboard"
+    />
+
+    <main class="tablet-main">
+      <header class="tablet-header">
+        <div>
+          <h1>{{ greeting }}</h1>
+          <p class="tablet-date">{{ longDate(now) }}</p>
+        </div>
+        <div class="tablet-header-status">
+          <span v-if="weatherNow" class="weather-now">
+            <strong v-if="weatherNow.temperature">{{ weatherNow.temperature }}</strong>
+            <span v-if="weatherNow.condition">{{ weatherNow.condition }}</span>
+          </span>
+          <span class="tablet-clock">{{ time(now) }}</span>
+        </div>
+      </header>
+
+      <p v-if="actionError" class="action-error tablet-error">
+        {{ actionError }}
+        <button type="button" class="dismiss-error" @click="actionError = undefined">✕</button>
+      </p>
+
+      <section class="dashboard-grid manifest-grid tablet-grid" :style="gridStyle">
+        <ManifestCardRenderer
+          v-for="card in manifest.cards"
+          :key="card.instanceId"
+          :card="card"
+          :states="states"
+          :dashboard-id="manifest.id"
+          :atmosphere="atmosphere"
+          :atmosphere-mode="atmosphereMode"
+        />
+      </section>
+    </main>
+
+    <SkySwitcher v-if="showSkySwitcher" :current-phase="atmosphere.phase" />
+  </div>
+
+  <div v-else class="app-shell">
     <AtmosphereLayer :atmosphere="atmosphere" :mode="atmosphereMode" :quick="showSkySwitcher" />
 
     <main>
@@ -152,7 +227,7 @@ onUnmounted(() => {
           </span>
 
           <span class="clock">
-            {{ now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }}
+            {{ time(now) }}
           </span>
         </div>
       </header>
@@ -188,6 +263,8 @@ onUnmounted(() => {
           :card="card"
           :states="states"
           :dashboard-id="manifest.id"
+          :atmosphere="atmosphere"
+          :atmosphere-mode="atmosphereMode"
         />
       </section>
 
@@ -202,6 +279,9 @@ onUnmounted(() => {
         <ApplianceCard kind="washer" title="Washing machine" state="38 min remaining" detail="Reference surface" :progress="64" />
         <ApplianceCard kind="vacuum" title="Robot vacuum" state="Docked" detail="Reference surface" />
         <SecurityCard />
+        <ForecastCard :days="sampleForecast" />
+        <AgendaCard :events="sampleAgenda" has-calendars />
+        <PresenceCard :people="demoPeople" />
       </section>
     </main>
 

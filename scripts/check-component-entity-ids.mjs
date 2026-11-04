@@ -3,7 +3,7 @@ import { readFile, readdir } from "node:fs/promises";
 import path from "node:path";
 
 const componentRoot = path.resolve("apps/dashboard/src/components");
-const entityIdPattern = /\b(?:sensor|binary_sensor|light|climate|cover|lock|vacuum|switch|media_player)\.[a-z0-9_]+\b/g;
+const entityIdPattern = /\b(?:sensor|binary_sensor|light|climate|cover|lock|vacuum|switch|media_player|camera|calendar|alarm_control_panel)\.[a-z0-9_]+\b/g;
 
 async function walk(directory) {
   const entries = await readdir(directory, { withFileTypes: true });

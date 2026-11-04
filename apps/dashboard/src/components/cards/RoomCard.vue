@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import { ChevronRight, Droplets, Lightbulb } from "lucide-vue-next";
 import GlassCard from "./GlassCard.vue";
+import { translate as t, useI18n } from "../../i18n";
 
 const props = defineProps<{
   name: string;
@@ -17,14 +18,16 @@ defineEmits<{
   "toggle-lights": [];
 }>();
 
+const { number } = useI18n();
+
 const lightsLabel = computed(() => {
   const on = props.lightsOn ?? 0;
-  if (on === 0) return "Lights off";
-  return on === 1 ? "1 light on" : `${on} lights on`;
+  if (on === 0) return t("room.lightsOff");
+  return on === 1 ? t("scene.lightsOn.one") : t("scene.lightsOn.other", { count: on });
 });
 
 const formattedTemperature = computed(() =>
-  props.temperature === undefined ? "—" : props.temperature.toFixed(1),
+  props.temperature === undefined ? "—" : number(Math.round(props.temperature * 10) / 10),
 );
 </script>
 
@@ -32,7 +35,7 @@ const formattedTemperature = computed(() =>
   <GlassCard className="room-card">
     <div class="room-top">
       <div>
-        <span class="eyebrow">ROOM</span>
+        <span class="eyebrow">{{ t("room.eyebrow") }}</span>
         <h2>{{ name }}</h2>
       </div>
       <div class="room-top-actions">
@@ -42,7 +45,7 @@ const formattedTemperature = computed(() =>
           class="icon-button card-toggle"
           :class="{ active }"
           :disabled="pending"
-          :aria-label="`Toggle lights in ${name}`"
+          :aria-label="t('room.toggleLights', { name })"
           @click="$emit('toggle-lights')"
         >
           <Lightbulb :size="15" />
@@ -54,13 +57,13 @@ const formattedTemperature = computed(() =>
     <div class="metric-row">
       <div>
         <strong class="hero-number">{{ formattedTemperature }}°</strong>
-        <span class="metric-label">Temperature</span>
+        <span class="metric-label">{{ t("room.temperature") }}</span>
       </div>
 
       <div v-if="humidity !== undefined" class="side-metric">
         <Droplets :size="16" />
-        <strong>{{ humidity }}%</strong>
-        <span>Humidity</span>
+        <strong>{{ number(Math.round(humidity)) }}%</strong>
+        <span>{{ t("room.humidity") }}</span>
       </div>
     </div>
 
