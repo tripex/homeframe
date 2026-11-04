@@ -43,7 +43,7 @@ let runtimeEvents: EventSource | undefined;
 export function useHomeAssistant() {
   async function connectRuntime(): Promise<boolean> {
     try {
-      const response = await fetch("/api/ha/snapshot", {
+      const response = await fetch("api/ha/snapshot", {
         headers: { accept: "application/json" },
       });
       if (!response.ok) return false;
@@ -62,7 +62,7 @@ export function useHomeAssistant() {
       status.value = "connected";
       error.value = undefined;
 
-      runtimeEvents = new EventSource("/api/ha/events");
+      runtimeEvents = new EventSource("api/ha/events");
       runtimeEvents.addEventListener("states", (event) => {
         const update = JSON.parse((event as MessageEvent<string>).data) as RuntimeStateEvent;
         const next = new Map(states.value);

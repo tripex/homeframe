@@ -27,7 +27,7 @@ export function useEnergyHistory(dashboardId: () => string | undefined, instance
 
     try {
       const query = new URLSearchParams({ dashboard, instance: instanceId() });
-      const response = await fetch(`/api/energy?${query}`, { headers: { accept: "application/json" } });
+      const response = await fetch(`api/energy?${query}`, { headers: { accept: "application/json" } });
       if (!response.ok) {
         unavailable.value = true;
         return;

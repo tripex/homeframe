@@ -19,7 +19,10 @@ const baseUrl = ref(
     "http://homeassistant.local:8123",
 );
 
-const token = ref(import.meta.env.VITE_HA_TOKEN || "");
+// Only a development server may prefill a token. Vite drops this branch from
+// production builds, so a VITE_HA_TOKEN in the environment can never end up
+// inside a bundle that the runtime or the add-on serves.
+const token = ref(import.meta.env.DEV ? import.meta.env.VITE_HA_TOKEN || "" : "");
 
 function connect(): void {
   sessionStorage.setItem("homeframe.haUrl", baseUrl.value);

@@ -3,9 +3,10 @@ import vue from "@vitejs/plugin-vue";
 import { defineConfig } from "vite";
 
 export default defineConfig({
-  // The hosted demo lives under /homeframe/ on GitHub Pages; everything else
-  // is served from the root by Homeframe Runtime or Vite.
-  base: process.env.HOMEFRAME_BASE ?? "/",
+  // Relative asset URLs by default, so the same build works at the root of a
+  // standalone runtime and under Home Assistant's ingress prefix
+  // (/api/hassio_ingress/<token>/). The hosted demo sets /homeframe/.
+  base: process.env.HOMEFRAME_BASE ?? "./",
   plugins: [vue()],
   resolve: {
     alias: {

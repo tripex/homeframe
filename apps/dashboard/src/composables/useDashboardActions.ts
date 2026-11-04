@@ -61,7 +61,7 @@ function pendingKey(instanceId: string, actionId: string): string {
 export function useDashboardActions() {
   async function loadStatus(): Promise<void> {
     try {
-      const response = await fetch("/api/health", {
+      const response = await fetch("api/health", {
         headers: { accept: "application/json" },
       });
       if (!response.ok) return;
@@ -86,7 +86,7 @@ export function useDashboardActions() {
     pending.value = next;
 
     try {
-      const response = await fetch("/api/actions", {
+      const response = await fetch("api/actions", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ dashboardId, instanceId, actionId, input }),
