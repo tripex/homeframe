@@ -11,6 +11,16 @@ import {
   resolveCardAction,
   type CardActionRequest,
 } from "@homeframe/tooling";
+import {
+  agendaForCard,
+  cameraIsOnADashboard,
+  CardDataError,
+  findCard,
+  findInstallationImage,
+  forecastForCard,
+  streamFile,
+} from "./card-data.js";
+import { isAllowedIngressClient, readAddonOptions, resolveConnection } from "./config.js";
 import { EnergyRequestError, energyForCard } from "./energy.js";
 import { RuntimeHomeAssistant } from "./home-assistant.js";
 
@@ -19,17 +29,29 @@ const repoRoot = path.resolve(here, "../../..");
 const staticDir = path.resolve(
   process.env.HOMEFRAME_STATIC_DIR ?? path.join(repoRoot, "apps", "dashboard", "dist"),
 );
-const port = Number(process.env.HOMEFRAME_PORT ?? 4173);
+const connection = resolveConnection();
+const runningAsAddon = connection.mode === "supervisor";
+
+// 8099 is the add-on ingress port declared in homeframe/config.yaml.
+const port = Number(process.env.HOMEFRAME_PORT ?? (runningAsAddon ? 8099 : 4173));
 const host = process.env.HOMEFRAME_HOST ?? "0.0.0.0";
 
-// Executing `control` actions from a screen is opt-in. The runtime has no
-// authentication yet, so anyone who can reach it could otherwise toggle lights.
-// `security` actions are refused regardless of this flag.
-const controlActionsEnabled = process.env.HOMEFRAME_ALLOW_CONTROL === "true";
+// Behind ingress, Home Assistant has already authenticated the user, so only
+// the ingress proxy may connect. Opting out exists for debugging only.
+const ingressOnly = runningAsAddon && process.env.HOMEFRAME_INGRESS_ONLY !== "false";
+
+// Executing `control` actions from a screen is opt-in. A standalone runtime
+// has no authentication, so anyone who can reach it could otherwise toggle
+// lights. As an add-on every request has passed Home Assistant's login, and
+// the add-on's `allow_control` option decides. `security` actions are refused
+// regardless.
+const addonOptions = runningAsAddon ? readAddonOptions(process.env.HOMEFRAME_DATA_DIR ?? "/data") : {};
+const controlActionsEnabled =
+  process.env.HOMEFRAME_ALLOW_CONTROL === "true" || addonOptions.allow_control === true;
 const maxActionBodyBytes = 16 * 1024;
 
 const homeAssistant = new RuntimeHomeAssistant();
-await homeAssistant.start(process.env.HOMEFRAME_HA_URL, process.env.HOMEFRAME_HA_TOKEN);
+await homeAssistant.start(connection);
 
 const mime: Record<string, string> = {
   ".css": "text/css; charset=utf-8",
@@ -201,6 +223,70 @@ async function handleEnergy(
   }
 }
 
+/**
+ * GET /api/forecast|agenda?dashboard=<id>&instance=<card instance id>
+ *
+ * Data for forecast and agenda cards, read through the card's own bindings.
+ */
+async function handleCardData(
+  url: URL,
+  response: import("node:http").ServerResponse,
+  cardType: "weather-forecast" | "agenda",
+): Promise<void> {
+  const dashboardId = url.searchParams.get("dashboard");
+  const instanceId = url.searchParams.get("instance");
+  if (!dashboardId || !instanceId) {
+    json(response, 400, { error: "Expected dashboard and instance query parameters", reason: "invalid-request" });
+    return;
+  }
+
+  const dashboard = await getDashboard(dashboardId);
+  if (!dashboard) {
+    json(response, 404, { error: `Unknown dashboard: ${dashboardId}`, reason: "unknown-dashboard" });
+    return;
+  }
+
+  try {
+    const card = findCard(dashboard, instanceId, cardType);
+    json(
+      response,
+      200,
+      cardType === "agenda" ? await agendaForCard(homeAssistant, card) : await forecastForCard(homeAssistant, card),
+    );
+  } catch (error) {
+    if (error instanceof CardDataError) {
+      json(response, error.status, { error: error.message, reason: error.reason });
+      return;
+    }
+    json(response, 502, { error: error instanceof Error ? error.message : String(error), reason: "service-call-failed" });
+  }
+}
+
+/**
+ * GET /api/camera_proxy/<camera entity>
+ *
+ * A still image, fetched server-side with the runtime's credential. Only
+ * cameras bound on a saved dashboard are served.
+ */
+async function handleCamera(entityId: string, response: import("node:http").ServerResponse): Promise<void> {
+  if (!(await cameraIsOnADashboard(entityId))) {
+    json(response, 403, { error: `${entityId} is not on any saved dashboard`, reason: "camera-not-on-dashboard" });
+    return;
+  }
+  if (homeAssistant.snapshot().status !== "connected") {
+    json(response, 503, { error: "Home Assistant is not connected", reason: "home-assistant-unavailable" });
+    return;
+  }
+
+  try {
+    const image = await homeAssistant.cameraSnapshot(entityId);
+    response.writeHead(200, { "content-type": image.contentType, "cache-control": "no-store" });
+    response.end(image.body);
+  } catch (error) {
+    json(response, 502, { error: error instanceof Error ? error.message : String(error), reason: "camera-failed" });
+  }
+}
+
 async function serveFile(
   response: import("node:http").ServerResponse,
   requestedPath: string,
@@ -221,6 +307,16 @@ async function serveFile(
 }
 
 const server = createServer(async (request, response) => {
+  if (ingressOnly && !isAllowedIngressClient(request.socket.remoteAddress)) {
+    response.writeHead(403, { "content-type": "text/plain; charset=utf-8" });
+    response.end("Homeframe only accepts connections through Home Assistant ingress.\n");
+    return;
+  }
+
+  // Cards render Home Assistant strings and camera images; never let a
+  // browser second-guess a content type.
+  response.setHeader("x-content-type-options", "nosniff");
+
   try {
     const url = new URL(request.url ?? "/", `http://${request.headers.host ?? "localhost"}`);
 
@@ -242,6 +338,7 @@ const server = createServer(async (request, response) => {
         ok: true,
         service: "homeframe-runtime",
         homeAssistant: homeAssistant.snapshot().status,
+        connection: connection.mode,
         controlActions: controlActionsEnabled ? "enabled" : "disabled",
       });
       return;
@@ -260,6 +357,28 @@ const server = createServer(async (request, response) => {
 
     if (url.pathname === "/api/energy") {
       await handleEnergy(url, response);
+      return;
+    }
+
+    if (url.pathname === "/api/forecast") {
+      await handleCardData(url, response, "weather-forecast");
+      return;
+    }
+
+    if (url.pathname === "/api/agenda") {
+      await handleCardData(url, response, "agenda");
+      return;
+    }
+
+    if (url.pathname.startsWith("/api/camera_proxy/")) {
+      await handleCamera(decodeURIComponent(url.pathname.slice("/api/camera_proxy/".length)), response);
+      return;
+    }
+
+    if (url.pathname.startsWith("/api/assets/")) {
+      const image = await findInstallationImage(decodeURIComponent(url.pathname.slice("/api/assets/".length)));
+      if (image) streamFile(response, image.file, image.type);
+      else json(response, 404, { error: "No such installation image", reason: "missing-asset" });
       return;
     }
 
@@ -295,7 +414,8 @@ server.listen(port, host, () => {
   const haStatus = homeAssistant.snapshot().status;
   console.log(`Homeframe running at http://${host}:${port}`);
   console.log(`Dashboard data: ${process.env.HOMEFRAME_DATA_DIR ?? "~/.homeframe"}`);
-  console.log(`Home Assistant: ${haStatus}`);
+  console.log(`Home Assistant: ${haStatus} (${connection.mode})`);
+  if (ingressOnly) console.log("Accepting connections from the ingress proxy only");
   console.log(`Control actions: ${controlActionsEnabled ? "enabled" : "disabled"}`);
 });
 

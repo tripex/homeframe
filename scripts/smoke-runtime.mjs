@@ -1,10 +1,15 @@
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
-import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import os from "node:os";
 import path from "node:path";
-import { loadHomeSnapshot, planAndSaveDashboards } from "../packages/tooling/dist/index.js";
+import {
+  createDashboardFromTemplate,
+  loadHomeSnapshot,
+  planAndSaveDashboards,
+  saveDashboard,
+} from "../packages/tooling/dist/index.js";
 import { startFakeHomeAssistant } from "./fake-home-assistant.mjs";
 
 
@@ -15,7 +20,13 @@ import { startFakeHomeAssistant } from "./fake-home-assistant.mjs";
 async function startRuntime({ dataDir, frameworkRoot, host, port, extraEnv = {} }) {
   // A developer's local .env may carry real Home Assistant credentials; strip
   // them so a test only talks to Home Assistant when it passes one explicitly.
-  const { HOMEFRAME_HA_URL: _url, HOMEFRAME_HA_TOKEN: _token, ...inherited } = process.env;
+  const {
+    HOMEFRAME_HA_URL: _url,
+    HOMEFRAME_HA_TOKEN: _token,
+    SUPERVISOR_TOKEN: _supervisor,
+    HOMEFRAME_ALLOW_CONTROL: _control,
+    ...inherited
+  } = process.env;
   const childEnv = {
     ...inherited,
     HOMEFRAME_DATA_DIR: dataDir,
@@ -107,7 +118,9 @@ const baseUrl = `http://${host}:${port}`;
 let child;
 let controlChild;
 let liveChild;
+let supervisorChild;
 let fakeHomeAssistant;
+let fakeSupervisor;
 
 try {
   const home = JSON.parse(
@@ -127,6 +140,7 @@ try {
     ok: true,
     service: "homeframe-runtime",
     homeAssistant: "disabled",
+    connection: "none",
     controlActions: "disabled",
   });
 
@@ -304,11 +318,106 @@ try {
   assert.equal(wrongCard.status, 400);
   assert.equal((await wrongCard.json()).reason, "not-an-energy-card");
 
+  // --- Add-on mode: the Supervisor proxies Home Assistant ------------------
+  //
+  // The fake answers on /core/websocket and /core/api like the Supervisor
+  // and only accepts the SUPERVISOR_TOKEN the runtime was started with.
+  const supervisorToken = "supervisor-smoke-token-7d1f";
+  fakeSupervisor = await startFakeHomeAssistant({ port: 0, token: supervisorToken });
+  const addonData = await mkdtemp(path.join(os.tmpdir(), "homeframe-addon-smoke-"));
+  // The add-on's options as the Supervisor writes them.
+  await writeFile(path.join(addonData, "options.json"), JSON.stringify({ allow_control: true }));
+
+  const addonPort = await freePort();
+  supervisorChild = await startRuntime({
+    dataDir: addonData,
+    frameworkRoot,
+    host,
+    port: addonPort,
+    extraEnv: { SUPERVISOR_TOKEN: supervisorToken, HOMEFRAME_SUPERVISOR_URL: fakeSupervisor.url },
+  });
+  const addonUrl = `http://${host}:${addonPort}`;
+
+  const addonHealth = await (await fetch(`${addonUrl}/api/health`)).json();
+  assert.equal(addonHealth.homeAssistant, "connected");
+  assert.equal(addonHealth.connection, "supervisor");
+  assert.equal(addonHealth.controlActions, "enabled", "allow_control comes from /data/options.json");
+
+  // Template → saved dashboard, from the home the add-on sees.
+  const addonHome = await loadHomeSnapshot({ runtimeUrl: addonUrl, name: "Addon Home" });
+  const tablet = await createDashboardFromTemplate(
+    "home-tablet",
+    addonHome,
+    { id: "addon-tablet", locale: "da" },
+    { dataDir: addonData, frameworkRoot },
+  );
+  const tabletCard = (id) => tablet.cards.find((card) => card.instanceId === id);
+  assert.ok(tabletCard("home-scene") && tabletCard("camera-1") && tabletCard("forecast") && tabletCard("agenda"));
+
+  // Nothing the browser can fetch carries the token.
+  for (const route of ["/", "/api/ha/snapshot", "/api/dashboards/addon-tablet", "/api/health"]) {
+    const body = await (await fetch(`${addonUrl}${route}`)).text();
+    assert.ok(!body.includes(supervisorToken), `${route} leaked the Supervisor token`);
+  }
+
+  // Cameras: proxied server-side with the token, only when on a dashboard.
+  const camera = await fetch(`${addonUrl}/api/camera_proxy/${tabletCard("camera-1").bindings.camera}`);
+  assert.equal(camera.status, 200);
+  assert.equal(camera.headers.get("content-type"), "image/png");
+  assert.deepEqual([...new Uint8Array(await camera.arrayBuffer()).slice(1, 4)], [0x50, 0x4e, 0x47]);
+  assert.ok(fakeSupervisor.cameraRequests.every((request) => request.authorized && request.url.startsWith("/core/api/")));
+  const strayCamera = await fetch(`${addonUrl}/api/camera_proxy/camera.not_on_a_dashboard`);
+  assert.equal(strayCamera.status, 403);
+  assert.equal((await strayCamera.json()).reason, "camera-not-on-dashboard");
+
+  const forecast = await (await fetch(`${addonUrl}/api/forecast?dashboard=addon-tablet&instance=forecast`)).json();
+  assert.equal(forecast.days.length, 5);
+  assert.ok(forecast.days.every((day) => typeof day.high === "number" && day.condition));
+  const agenda = await (await fetch(`${addonUrl}/api/agenda?dashboard=addon-tablet&instance=agenda`)).json();
+  assert.ok(agenda.events.length >= 3);
+  assert.equal(agenda.calendars["calendar.family"], "Family");
+  const wrongType = await fetch(`${addonUrl}/api/forecast?dashboard=addon-tablet&instance=agenda`);
+  assert.equal(wrongType.status, 400);
+
+  // Security: even with control enabled, a lock bound as a "light" is refused
+  // and Home Assistant never sees a state-changing call.
+  await saveDashboard(
+    {
+      ...tablet,
+      cards: [
+        ...tablet.cards,
+        { instanceId: "room-tampered", card: "room", bindings: { light: ["light.kitchen", "lock.front_door"] } },
+      ],
+    },
+    { dataDir: addonData, frameworkRoot },
+  );
+  const tampered = await postAction(addonUrl, { dashboardId: "addon-tablet", instanceId: "room-tampered", actionId: "toggle-lights" });
+  assert.equal(tampered.status, 403);
+  assert.equal(tampered.body.reason, "security-entity");
+  const lockStatus = await postAction(addonUrl, { dashboardId: "addon-tablet", instanceId: "lock-status", actionId: "change-security-state" });
+  assert.equal(lockStatus.status, 403);
+  assert.equal(lockStatus.body.reason, "security-approval-required");
+
+  const stateChanging = fakeSupervisor.serviceCalls.filter((call) => !call.return_response);
+  assert.deepEqual(stateChanging, [], "no state-changing service call reached Home Assistant");
+  assert.ok(
+    fakeSupervisor.serviceCalls.every((call) => ["weather.get_forecasts", "calendar.get_events"].includes(`${call.domain}.${call.service}`)),
+  );
+
+  // A control action that is allowed does reach Home Assistant.
+  const tabletRoom = tablet.cards.find((card) => card.card === "room" && card.bindings.light);
+  const toggled = await postAction(addonUrl, { dashboardId: "addon-tablet", instanceId: tabletRoom.instanceId, actionId: "toggle-lights" });
+  assert.equal(toggled.status, 200);
+  assert.equal(toggled.body.call.domain, "light");
+  await rm(addonData, { recursive: true, force: true });
+
   console.log("✓ runtime smoke test");
 } finally {
   await stopRuntime(child);
   await stopRuntime(controlChild);
   await stopRuntime(liveChild);
+  await stopRuntime(supervisorChild);
   await fakeHomeAssistant?.close();
+  await fakeSupervisor?.close();
   await rm(dataDir, { recursive: true, force: true });
 }

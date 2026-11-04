@@ -7,6 +7,10 @@ import {
   type ServiceCall,
   type StatisticPoint,
 } from "@homeframe/core";
+import { READ_SERVICES } from "@homeframe/tooling";
+import type { HomeAssistantConnection } from "./config.js";
+
+const RASTER_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
 export type RuntimeHomeAssistantStatus =
   | "disabled"
@@ -36,9 +40,11 @@ export class RuntimeHomeAssistant {
   private error?: string;
   private eventClients = new Set<ServerResponse>();
   private unsubscribe?: () => void;
+  private connection: HomeAssistantConnection = { mode: "none" };
 
-  async start(baseUrl?: string, token?: string): Promise<void> {
-    if (!baseUrl || !token) {
+  async start(connection: HomeAssistantConnection): Promise<void> {
+    this.connection = connection;
+    if (connection.mode === "none") {
       this.status = "disabled";
       return;
     }
@@ -47,7 +53,9 @@ export class RuntimeHomeAssistant {
     this.error = undefined;
 
     try {
-      const client = new HomeAssistantClient(baseUrl, token);
+      const client = new HomeAssistantClient(connection.baseUrl, connection.token, {
+        websocketUrl: connection.websocketUrl,
+      });
       await client.connect();
 
       const snapshot = await client.getSnapshot();
@@ -66,6 +74,10 @@ export class RuntimeHomeAssistant {
       this.error = reason instanceof Error ? reason.message : String(reason);
       this.publish("status", { status: this.status, error: this.error });
     }
+  }
+
+  get mode(): HomeAssistantConnection["mode"] {
+    return this.connection.mode;
   }
 
   snapshot(): RuntimeHomeAssistantSnapshot {
@@ -87,6 +99,42 @@ export class RuntimeHomeAssistant {
       throw new Error(`Home Assistant is not connected (status: ${this.status})`);
     }
     return this.client.callService(call);
+  }
+
+  /**
+   * Call one of the read-only data services (weather forecasts, calendar
+   * events). Anything outside READ_SERVICES is refused here, so this method
+   * cannot become a back door for state-changing calls.
+   */
+  async readService<T = unknown>(call: ServiceCall): Promise<T> {
+    if (!READ_SERVICES.has(`${call.domain}.${call.service}`)) {
+      throw new Error(`${call.domain}.${call.service} is not a read-only data service`);
+    }
+    if (!this.client || this.status !== "connected") {
+      throw new Error(`Home Assistant is not connected (status: ${this.status})`);
+    }
+    return this.client.callServiceForResponse<T>(call);
+  }
+
+  /**
+   * Fetch a still image from Home Assistant's camera proxy. The caller is
+   * responsible for deciding which cameras a screen may see.
+   */
+  async cameraSnapshot(entityId: string): Promise<{ contentType: string; body: Buffer }> {
+    if (this.connection.mode === "none" || this.status !== "connected") {
+      throw new Error(`Home Assistant is not connected (status: ${this.status})`);
+    }
+    const response = await fetch(`${this.connection.restUrl}/camera_proxy/${encodeURIComponent(entityId)}`, {
+      headers: { authorization: `Bearer ${this.connection.token}` },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!response.ok) throw new Error(`Camera proxy returned ${response.status}`);
+
+    const contentType = (response.headers.get("content-type") ?? "").split(";")[0].trim();
+    // Only forward raster images. An HTML error page — or an SVG, which can
+    // carry script — must never be served from the dashboard's origin.
+    if (!RASTER_IMAGE_TYPES.has(contentType)) throw new Error("Camera proxy did not return a raster image");
+    return { contentType, body: Buffer.from(await response.arrayBuffer()) };
   }
 
   /** Read recorder statistics. Throws when there is no live connection. */
