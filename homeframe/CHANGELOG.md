@@ -2,6 +2,8 @@
 
 ## 0.3.2
 
+- The drawn house follows daylight instead of always looking like night.
+- Rooms without a room thermometer show their lights instead of "—°".
 - Cameras: one camera per device (the main/high-resolution stream; package,
   insecure and low-res streams are skipped, offline cameras rank last), so
   two camera slots show two different cameras. Titles drop the
