@@ -1,7 +1,7 @@
 {
   "id": "home-tablet",
   "displayName": "Home tablet",
-  "description": "Wall tablet home screen: side navigation, a hero picture of the house with up to two cameras beneath it, a status column (locks, climate, forecast, agenda) and a row of the most useful rooms.",
+  "description": "Wall tablet home screen: side navigation, a hero picture of the house with up to two cameras beneath it, a status column (locks, climate, forecast, agenda or vacuum, and live energy flow when the home has solar or a grid meter) and a row of the most useful rooms.",
   "aiSummary": "Use for a 10\" landscape wall tablet that should feel like the front page of the house rather than a grid of devices.",
   "profile": "tablet-10",
   "navigation": {
@@ -32,11 +32,13 @@
       "id": "status",
       "x": 8,
       "w": 4,
+      "rows": 10,
       "stack": [
         {
           "instanceId": "lock-status",
           "card": "security",
           "h": 1,
+          "priority": 5,
           "requires": [
             "lock",
             "alarm",
@@ -52,6 +54,7 @@
           "instanceId": "climate-overview",
           "card": "climate",
           "h": 2,
+          "priority": 1,
           "requires": [
             "climate"
           ],
@@ -63,6 +66,7 @@
           "instanceId": "forecast",
           "card": "weather-forecast",
           "h": 2,
+          "priority": 3,
           "requires": [
             "weather"
           ],
@@ -73,13 +77,15 @@
         {
           "instanceId": "agenda",
           "card": "agenda",
-          "h": 5,
-          "bindings": {
-            "calendar": "calendar[]"
-          },
+          "h": 2,
+          "priority": 2,
+          "grow": 5,
           "requires": [
             "calendar"
           ],
+          "bindings": {
+            "calendar": "calendar[]"
+          },
           "otherwise": [
             {
               "instanceId": "vacuum",
@@ -109,6 +115,26 @@
               }
             }
           ]
+        },
+        {
+          "instanceId": "energy-flow",
+          "card": "energy-flow",
+          "h": 5,
+          "priority": 4,
+          "requires": [
+            "solar_power",
+            "grid_power"
+          ],
+          "bindings": {
+            "solar_power": "solar_power",
+            "grid_power": "grid_power",
+            "battery_power": "battery_power",
+            "battery_level": "battery_level",
+            "ev_power": "ev_power",
+            "power": "power",
+            "energy": "energy",
+            "price": "price"
+          }
         }
       ]
     },

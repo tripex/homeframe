@@ -31,7 +31,18 @@ export type TemplateStackCard = {
   /** Skip the card unless at least one of these capability kinds exists. */
   requires?: string[];
   /** Tried in order when `requires` is not met, e.g. a vacuum when there is no calendar. */
-  otherwise?: Array<Omit<TemplateStackCard, "otherwise" | "h">>;
+  otherwise?: Array<Omit<TemplateStackCard, "otherwise" | "h" | "priority" | "grow">>;
+  /**
+   * With a region `rows` budget: cards are kept by descending priority until
+   * the budget is used, then laid out in listed order. Defaults to 0.
+   */
+  priority?: number;
+  /**
+   * Grow into rows left over in the budget, up to this many rows in total
+   * (never below `h`). One per region; a home without an energy card gets
+   * its usual tall agenda back.
+   */
+  grow?: number;
 };
 
 /** Cards stacked top to bottom in a fixed column span. */
@@ -39,6 +50,12 @@ export type TemplateStackRegion = {
   id: string;
   x: number;
   w: number;
+  /**
+   * Height budget in grid rows. Cards that do not fit are left out, lowest
+   * priority first, so an optional card (energy flow) can push out a less
+   * important one (forecast) instead of scrolling the screen.
+   */
+  rows?: number;
   stack: TemplateStackCard[];
 };
 
@@ -125,6 +142,50 @@ function resolveBindings(
 
 function isStack(region: TemplateStackRegion | TemplateRepeatRegion): region is TemplateStackRegion {
   return "stack" in region;
+}
+
+type StackSlot = Omit<TemplateStackCard, "otherwise">;
+
+/**
+ * Resolve a stack to the cards that are shown and their heights: pick each
+ * slot's first alternative whose `requires` is met, keep slots by priority
+ * within the `rows` budget, then let the `grow` slot absorb what is left.
+ */
+function fitStack(region: TemplateStackRegion, lookup: (kind: string) => string[]): StackSlot[] {
+  const met = (candidate: { requires?: string[] }) =>
+    !candidate.requires || candidate.requires.some((kind) => lookup(kind).length);
+
+  const available = region.stack.flatMap((preferred, index) => {
+    const choice = [preferred, ...(preferred.otherwise ?? [])].find(met);
+    if (!choice) return [];
+    const slot: StackSlot = {
+      instanceId: choice.instanceId,
+      card: choice.card,
+      h: preferred.h,
+      ...(choice.bindings ? { bindings: choice.bindings } : {}),
+      ...(choice.props ? { props: choice.props } : {}),
+      ...(preferred.priority !== undefined ? { priority: preferred.priority } : {}),
+      ...(preferred.grow !== undefined ? { grow: preferred.grow } : {}),
+    };
+    return [{ slot, index }];
+  });
+
+  if (region.rows === undefined) return available.map(({ slot }) => slot);
+
+  let used = 0;
+  const kept = new Set<number>();
+  for (const { slot, index } of [...available].sort(
+    (a, b) => (b.slot.priority ?? 0) - (a.slot.priority ?? 0) || a.index - b.index,
+  )) {
+    if (used + slot.h > region.rows) continue;
+    used += slot.h;
+    kept.add(index);
+  }
+
+  const shown = available.filter(({ index }) => kept.has(index)).map(({ slot }) => ({ ...slot }));
+  const grower = shown.find((slot) => slot.grow !== undefined);
+  if (grower) grower.h = Math.max(grower.h, Math.min(grower.grow ?? grower.h, grower.h + region.rows - used));
+  return shown;
 }
 
 /**
@@ -214,12 +275,7 @@ export function instantiateTemplate(
   const bottoms = new Map<string, number>();
   for (const region of template.regions.filter(isStack)) {
     let y = 0;
-    for (const preferred of region.stack) {
-      const met = (candidate: { requires?: string[] }) =>
-        !candidate.requires || candidate.requires.some((kind) => lookup(kind).length);
-      const choice = [preferred, ...(preferred.otherwise ?? [])].find(met);
-      if (!choice) continue;
-      const slot = { ...choice, h: preferred.h };
+    for (const slot of fitStack(region, lookup)) {
       cards.push({
         instanceId: slot.instanceId,
         card: slot.card,

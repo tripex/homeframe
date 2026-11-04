@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { test } from "node:test";
-import { getTemplate, instantiateTemplate, validateDashboard } from "../dist/index.js";
+import { getTemplate, homeSnapshotFromSemanticHome, instantiateTemplate, validateDashboard } from "../dist/index.js";
 
 const frameworkRoot = path.resolve(new URL("../../..", import.meta.url).pathname);
 const exampleHome = JSON.parse(await readFile(path.join(frameworkRoot, "examples", "home-snapshot.json"), "utf8"));
@@ -75,4 +75,69 @@ test("without calendars the agenda slot falls back to the vacuum, then people", 
 
   const withPeople = instantiateTemplate(template, { areas: [], capabilities: { person: ["person.anna"] } });
   assert.ok(withPeople.cards.some((card) => card.card === "presence"));
+});
+
+const solarHome = {
+  name: "Sun House",
+  areas: [{ id: "shed", name: "Shed", capabilities: { light: ["light.shed"] } }],
+  capabilities: {
+    lock: ["lock.front"],
+    climate: ["climate.kid"],
+    weather: ["weather.home"],
+    vacuum: ["vacuum.robot"],
+    solar_power: ["sensor.pv_total", "sensor.pv1"],
+    grid_power: ["sensor.grid"],
+    power: ["sensor.house_load", "sensor.plug"],
+    energy: ["sensor.house_today"],
+    camera: ["camera.door", "camera.drive"],
+  },
+};
+
+test("solar or a grid meter adds the energy flow to the status column without scrolling", async () => {
+  const dashboard = instantiateTemplate(template, solarHome, { locale: "da" });
+  const byId = Object.fromEntries(dashboard.cards.map((card) => [card.instanceId, card]));
+
+  assert.deepEqual(byId["energy-flow"].layout, { x: 8, y: 5, w: 4, h: 5 });
+  assert.deepEqual(byId["energy-flow"].bindings, {
+    solar_power: "sensor.pv_total",
+    grid_power: "sensor.grid",
+    power: "sensor.house_load",
+    energy: "sensor.house_today",
+  });
+  // The vacuum shrinks to a two-row strip; the climate overview, the lowest
+  // priority (the hero scene already shows inside temperature and heating),
+  // makes room.
+  assert.deepEqual(byId.vacuum.layout, { x: 8, y: 3, w: 4, h: 2 });
+  assert.equal(byId["climate-overview"], undefined);
+  assert.deepEqual(byId.forecast.layout, { x: 8, y: 1, w: 4, h: 2 });
+
+  // Everything fits 12 rows: 1280x800 without scrolling.
+  for (const card of dashboard.cards) assert.ok(card.layout.y + card.layout.h <= 12, card.instanceId);
+  assert.deepEqual((await validateDashboard(dashboard, frameworkRoot)).errors, []);
+});
+
+test("without solar or a grid meter the status column is unchanged", () => {
+  const { solar_power: _s, grid_power: _g, ...rest } = solarHome.capabilities;
+  const dashboard = instantiateTemplate(template, { ...solarHome, capabilities: rest });
+  const byId = Object.fromEntries(dashboard.cards.map((card) => [card.instanceId, card]));
+  assert.equal(byId["energy-flow"], undefined);
+  assert.deepEqual(byId["climate-overview"].layout, { x: 8, y: 1, w: 4, h: 2 });
+  assert.deepEqual(byId.vacuum.layout, { x: 8, y: 5, w: 4, h: 5 });
+});
+
+test("live discovery feeds the template one camera per device and the best sensors first", () => {
+  const cap = (kind, entityId, score) => ({ kind, entityId, label: entityId, domain: entityId.split(".")[0], score });
+  const home = homeSnapshotFromSemanticHome({
+    areas: [
+      { id: "porch", name: "Porch", capabilities: [cap("camera", "camera.porch_offline", 55), cap("power", "sensor.porch_plug", 70)] },
+      { id: "shed", name: "Shed", capabilities: [cap("camera", "camera.drive", 85), cap("power", "sensor.house_load", 90)] },
+      { id: "hall", name: "Hall", capabilities: [cap("camera", "camera.door", 85)] },
+    ],
+    unassigned: [],
+  });
+  assert.deepEqual(home.capabilities.camera, ["camera.drive", "camera.door", "camera.porch_offline"]);
+  assert.deepEqual(home.capabilities.power, ["sensor.house_load", "sensor.porch_plug"]);
+
+  const cameras = instantiateTemplate(template, home).cards.filter((card) => card.card === "camera");
+  assert.deepEqual(cameras.map((card) => card.bindings.camera), ["camera.drive", "camera.door"]);
 });
