@@ -193,6 +193,12 @@ Use `plan_dashboards` first when an agent is creating a new installation so the 
 `set_card_layout`
 : Moves/resizes a card using grid coordinates.
 
+`set_card_prop`
+: Sets or clears one card prop, checked against the card contract (e.g. the energy card's `tariff`, `surcharge`, `currency`).
+
+`set_atmosphere`
+: Sets the ambient sky: `mode` (`live`, `calm`, `off`) and the `sun`/`weather` entities it follows. Visual only; never changes Home Assistant.
+
 `reflow_dashboard`
 : Recalculates a clean deterministic layout.
 

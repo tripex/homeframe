@@ -3,6 +3,9 @@ import vue from "@vitejs/plugin-vue";
 import { defineConfig } from "vite";
 
 export default defineConfig({
+  // The hosted demo lives under /homeframe/ on GitHub Pages; everything else
+  // is served from the root by Homeframe Runtime or Vite.
+  base: process.env.HOMEFRAME_BASE ?? "/",
   plugins: [vue()],
   resolve: {
     alias: {

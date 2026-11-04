@@ -13,7 +13,7 @@
     { "kind": "ev_power" },
     { "kind": "power" },
     { "kind": "energy" },
-    { "kind": "electricity_price" }
+    { "kind": "price" }
   ],
   "props": {
     "title": {

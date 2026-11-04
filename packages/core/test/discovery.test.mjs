@@ -191,22 +191,44 @@ test("power sensors are split into energy-flow roles by name", () => {
   assert.equal(findCapability(home, "sensor.house_consumption").kind, "power");
 });
 
-test("spot price sensors in currency per kWh become electricity_price", () => {
+test("sun and weather entities become ambient capabilities", () => {
+  const home = discoverHome(
+    buildSnapshot({
+      entities: [
+        { entity_id: "sun.sun", state: "above_horizon" },
+        { entity_id: "weather.forecast_home", state: "rainy" },
+      ],
+    }),
+  );
+
+  assert.equal(findCapability(home, "sun.sun")?.kind, "sun");
+  assert.equal(findCapability(home, "weather.forecast_home")?.kind, "weather");
+});
+
+test("price-per-kWh sensors are prices, not energy", () => {
   const home = discoverHome(
     buildSnapshot({
       entities: [
         {
           entity_id: "sensor.energi_data_service",
-          state: "1.42",
-          attributes: { unit_of_measurement: "kr/kWh" },
+          state: "1.84",
+          attributes: { unit_of_measurement: "DKK/kWh" },
         },
         {
-          entity_id: "sensor.home_energy_today",
-          attributes: { device_class: "energy", unit_of_measurement: "kWh" },
+          entity_id: "sensor.nordpool_kwh_dk2",
+          state: "92.1",
+          attributes: { unit_of_measurement: "øre/kWh", device_class: "monetary" },
+        },
+        {
+          entity_id: "sensor.house_energy",
+          state: "1203.4",
+          attributes: { unit_of_measurement: "kWh", device_class: "energy" },
         },
       ],
     }),
   );
-  assert.equal(findCapability(home, "sensor.energi_data_service").kind, "electricity_price");
-  assert.equal(findCapability(home, "sensor.home_energy_today").kind, "energy");
+
+  assert.equal(findCapability(home, "sensor.energi_data_service")?.kind, "price");
+  assert.equal(findCapability(home, "sensor.nordpool_kwh_dk2")?.kind, "price");
+  assert.equal(findCapability(home, "sensor.house_energy")?.kind, "energy");
 });

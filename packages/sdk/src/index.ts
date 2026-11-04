@@ -70,6 +70,27 @@ export type DashboardCard = {
 };
 
 /**
+ * How alive the background behind the cards is.
+ *
+ * - `live`: sky follows the sun, weather is drawn (rain, snow, fog…)
+ * - `calm`: sky colors follow the sun, no weather motion
+ * - `off`: a fixed, neutral background
+ */
+export type AtmosphereMode = "live" | "calm" | "off";
+
+/**
+ * Dashboard-wide ambient scene. Like card bindings, the entity ids here are
+ * installation data; the renderer only ever sees the derived sky description.
+ */
+export type DashboardAtmosphere = {
+  mode?: AtmosphereMode;
+  /** Usually `sun.sun`. Without it the sky falls back to the local clock. */
+  sun?: string;
+  /** A `weather.*` entity for precipitation, clouds and outdoor temperature. */
+  weather?: string;
+};
+
+/**
  * A DashboardManifest is installation data, not framework source code.
  * Different screens should normally use separate manifests.
  *
@@ -82,6 +103,7 @@ export type DashboardManifest = {
   name: string;
   target: DashboardTarget;
   theme?: string;
+  atmosphere?: DashboardAtmosphere;
   generatedBy?: string;
   cards: DashboardCard[];
   createdAt?: string;

@@ -11,6 +11,7 @@ import {
   resolveCardAction,
   type CardActionRequest,
 } from "@homeframe/tooling";
+import { EnergyRequestError, energyForCard } from "./energy.js";
 import { RuntimeHomeAssistant } from "./home-assistant.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -151,6 +152,55 @@ async function handleAction(
   }
 }
 
+/**
+ * GET /api/energy?dashboard=<id>&instance=<card instance id>
+ *
+ * Hourly consumption and cost for one saved energy card. The card's own
+ * bindings decide which sensors are read, so a screen cannot use this to
+ * query arbitrary entities.
+ */
+async function handleEnergy(
+  url: URL,
+  response: import("node:http").ServerResponse,
+): Promise<void> {
+  const dashboardId = url.searchParams.get("dashboard");
+  const instanceId = url.searchParams.get("instance");
+  if (!dashboardId || !instanceId) {
+    json(response, 400, { error: "Expected dashboard and instance query parameters", reason: "invalid-request" });
+    return;
+  }
+
+  const dashboard = await getDashboard(dashboardId);
+  if (!dashboard) {
+    json(response, 404, { error: `Unknown dashboard: ${dashboardId}`, reason: "unknown-dashboard" });
+    return;
+  }
+
+  const card = dashboard.cards.find((candidate) => candidate.instanceId === instanceId);
+  if (!card) {
+    json(response, 404, { error: `Unknown card instance: ${instanceId}`, reason: "unknown-card-instance" });
+    return;
+  }
+
+  if (homeAssistant.snapshot().status !== "connected") {
+    json(response, 503, { error: "Home Assistant is not connected", reason: "home-assistant-unavailable" });
+    return;
+  }
+
+  try {
+    json(response, 200, await energyForCard(homeAssistant, dashboardId, card));
+  } catch (error) {
+    if (error instanceof EnergyRequestError) {
+      json(response, error.status, { error: error.message, reason: error.reason });
+      return;
+    }
+    json(response, 502, {
+      error: error instanceof Error ? error.message : String(error),
+      reason: "statistics-failed",
+    });
+  }
+}
+
 async function serveFile(
   response: import("node:http").ServerResponse,
   requestedPath: string,
@@ -205,6 +255,11 @@ const server = createServer(async (request, response) => {
 
     if (url.pathname === "/api/ha/events") {
       homeAssistant.attachEvents(response);
+      return;
+    }
+
+    if (url.pathname === "/api/energy") {
+      await handleEnergy(url, response);
       return;
     }
 

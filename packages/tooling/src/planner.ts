@@ -1,4 +1,5 @@
 import type {
+  DashboardAtmosphere,
   DashboardCard,
   DashboardManifest,
   DashboardTarget,
@@ -95,7 +96,9 @@ function bindingsFrom(
 
 function cardWidth(card: string, columns: number): number {
   if (columns <= 4) return columns;
-  if (card === "climate") return columns;
+  // A climate overview lists zones and reads well wide, but on a 12-column
+  // screen it should leave room for one more card instead of a lonely row.
+  if (card === "climate") return columns >= 12 ? 8 : columns;
   if (card === "energy-flow") return columns <= 8 ? columns : 6;
   if (columns <= 8) return Math.min(4, columns);
   if (card === "room") return 4;
@@ -181,9 +184,14 @@ function globalCards(home: HomeSnapshot): DashboardCard[] {
     "ev_power",
     "power",
     "energy",
-    "electricity_price",
   ]);
   const energyBindings = bindingsFrom(global, ["power", "energy"]);
+  // A price is only useful next to consumption, and only one price can apply.
+  const price = global.price?.[0];
+  if (price) {
+    flowBindings.price = price;
+    energyBindings.price = price;
+  }
   if (flowBindings.solar_power || flowBindings.grid_power) {
     cards.push({
       instanceId: "energy-flow",
@@ -250,6 +258,19 @@ function globalCards(home: HomeSnapshot): DashboardCard[] {
   return cards;
 }
 
+/**
+ * The ambient scene uses the first sun and weather entity. Even without
+ * either, a live atmosphere is planned: the renderer falls back to the clock.
+ */
+function atmosphereFor(home: HomeSnapshot): DashboardAtmosphere {
+  const global = home.capabilities ?? {};
+  return {
+    mode: "live",
+    ...(global.sun?.[0] ? { sun: global.sun[0] } : {}),
+    ...(global.weather?.[0] ? { weather: global.weather[0] } : {}),
+  };
+}
+
 export function planDashboards(request: PlanRequest): DashboardManifest[] {
   const prefix = request.namePrefix ?? request.home.name ?? "Home";
 
@@ -267,6 +288,7 @@ export function planDashboards(request: PlanRequest): DashboardManifest[] {
       name: `${prefix} · ${profile}`,
       target,
       theme: "glass-dark",
+      atmosphere: atmosphereFor(request.home),
       generatedBy: "homeframe-planner",
       cards,
     };

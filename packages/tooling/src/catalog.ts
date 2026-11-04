@@ -9,6 +9,10 @@ export type CardCatalogEntry = {
   aiSummary: string;
   sizes: string[];
   capabilities: Array<{ kind: string; required?: boolean; multiple?: boolean }>;
+  props?: Record<
+    string,
+    { type: "string" | "number" | "boolean"; description: string; default?: unknown }
+  >;
   actions: Array<{ id: string; description: string; risk: string }>;
 };
 

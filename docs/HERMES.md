@@ -51,7 +51,7 @@ Either way, Hermes should then:
 4. Call `plan_dashboards` with the desired target profiles.
 5. Review the plan for obvious bad bindings or unwanted security surfaces.
 6. Call `create_planned_dashboards` to persist the dashboards.
-7. Use `set_binding`, `add_card`, `remove_card` and `set_card_layout` for refinements.
+7. Use `set_binding`, `add_card`, `remove_card`, `set_card_layout`, `set_card_prop` and `set_atmosphere` for refinements. Ask the user what they pay per kWh (or which fees their price sensor leaves out) before setting `tariff` or `surcharge`; never guess a price.
 8. Call `get_dashboard` to confirm the saved result.
 9. Do **not** edit Vue/TypeScript source for ordinary installation changes.
 
@@ -111,6 +111,8 @@ The important installation-level tools are:
 - `remove_card`
 - `set_binding`
 - `set_card_layout`
+- `set_card_prop`
+- `set_atmosphere`
 - `reflow_dashboard`
 - `delete_dashboard`
 

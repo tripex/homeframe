@@ -1,19 +1,32 @@
 {
   "id": "energy",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "displayName": "Energy",
-  "description": "Live power and consumption summary.",
-  "aiSummary": "Use when a whole-home or high-confidence power/energy sensor is available.",
+  "description": "Live power, today's hourly consumption from Home Assistant statistics, and what it costs.",
+  "aiSummary": "Use when a whole-home power or energy sensor exists. Bind an electricity price sensor (e.g. Energi Data Service, Nord Pool) to `price` for hourly costs, or set the `tariff` prop for a flat price.",
   "sizes": ["md", "wide"],
   "capabilities": [
     { "kind": "power", "required": true },
-    { "kind": "energy" }
+    { "kind": "energy" },
+    { "kind": "price" }
   ],
   "props": {
     "title": {
       "type": "string",
       "description": "Card title",
       "default": "Live usage"
+    },
+    "tariff": {
+      "type": "number",
+      "description": "Flat price per kWh in the main currency unit. Used when no price sensor is bound."
+    },
+    "surcharge": {
+      "type": "number",
+      "description": "Added to every dynamic price per kWh, for grid tariffs and taxes the price sensor leaves out."
+    },
+    "currency": {
+      "type": "string",
+      "description": "ISO 4217 code such as DKK or EUR. Inferred from the price sensor's unit when omitted."
     }
   },
   "actions": []

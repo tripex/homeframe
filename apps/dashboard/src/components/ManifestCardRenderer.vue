@@ -10,6 +10,7 @@ import GlassCard from "./cards/GlassCard.vue";
 import RoomCard from "./cards/RoomCard.vue";
 import SecurityCard from "./cards/SecurityCard.vue";
 import { useDashboardActions } from "../composables/useDashboardActions";
+import { useEnergyHistory } from "../composables/useEnergyHistory";
 
 const props = defineProps<{
   card: DashboardCard;
@@ -18,6 +19,12 @@ const props = defineProps<{
 }>();
 
 const { canControl, isPending, run } = useDashboardActions();
+
+// Only energy cards ask the runtime for history.
+const energyHistory =
+  props.card.card === "energy"
+    ? useEnergyHistory(() => props.dashboardId, () => props.card.instanceId).history
+    : undefined;
 
 function ids(binding: EntityBinding | undefined): string[] {
   if (!binding) return [];
@@ -150,8 +157,8 @@ function watts(capability: string, invert?: unknown): number | undefined {
  * simply shown without a level.
  */
 const priceLevel = computed<"low" | "normal" | "high" | undefined>(() => {
-  const state = firstState("electricity_price");
-  const price = numericState("electricity_price");
+  const state = firstState("price");
+  const price = numericState("price");
   if (!state || price === undefined) return undefined;
 
   const today = Array.isArray(state.attributes.today)
@@ -205,8 +212,11 @@ function returnVacuumHome(): void {
 
     <EnergyCard
       v-else-if="card.card === 'energy'"
+      :title="typeof card.props?.title === 'string' ? card.props.title : undefined"
       :watts="numericState('power') ?? 0"
-      :today-kwh="numericState('energy')"
+      :summary="energyHistory?.summary"
+      :currency="energyHistory?.currency"
+      :currency-label="energyHistory?.currencyLabel"
     />
 
     <EnergyFlowCard
@@ -226,7 +236,7 @@ function returnVacuumHome(): void {
       :ev-w="watts('ev_power')"
       :home-w="watts('power')"
       :today-kwh="numericState('energy')"
-      :price="numericState('electricity_price')"
+      :price="numericState('price')"
       :price-level="priceLevel"
     />
 

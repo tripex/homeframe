@@ -1,19 +1,24 @@
 <script setup lang="ts">
-import { Settings2, Sparkles, Wifi, WifiOff } from "lucide-vue-next";
+import { House, Settings2, Sparkles, Wifi, WifiOff } from "lucide-vue-next";
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import ApplianceCard from "./components/cards/ApplianceCard.vue";
 import ClimateCard from "./components/cards/ClimateCard.vue";
+import EnergyCard from "./components/cards/EnergyCard.vue";
 import EnergyFlowCard from "./components/cards/EnergyFlowCard.vue";
 import { demoEnergyAt } from "./demo/demoHome";
 import RoomCard from "./components/cards/RoomCard.vue";
 import SecurityCard from "./components/cards/SecurityCard.vue";
+import AtmosphereLayer from "./components/atmosphere/AtmosphereLayer.vue";
+import SkySwitcher from "./components/demo/SkySwitcher.vue";
 import BottomNav from "./components/layout/BottomNav.vue";
 import ManifestCardRenderer from "./components/ManifestCardRenderer.vue";
 import ConnectionModal from "./components/settings/ConnectionModal.vue";
+import { isDemoBuild, useAtmosphere } from "./composables/useAtmosphere";
 import { useDashboardActions } from "./composables/useDashboardActions";
 import { useDashboardData } from "./composables/useDashboardData";
 import { useDashboardManifest } from "./composables/useDashboardManifest";
 import { useHomeAssistant } from "./composables/useHomeAssistant";
+import { demoEnergyHistory } from "./demo/demoEnergy";
 
 const {
   status,
@@ -23,7 +28,7 @@ const {
   connect,
   error,
 } = useHomeAssistant();
-const { rooms, energyTodayKwh, climateZones } = useDashboardData(
+const { rooms, powerWatts, climateZones } = useDashboardData(
   status,
   states,
   semanticHome,
@@ -35,10 +40,43 @@ const {
   load: loadManifest,
 } = useDashboardManifest();
 const { lastError: actionError, loadStatus: loadActionStatus } = useDashboardActions();
+const { atmosphere, mode: atmosphereMode } = useAtmosphere(manifest, states, semanticHome);
+const showSkySwitcher = isDemoBuild || new URLSearchParams(window.location.search).has("preview");
+
+const CONDITION_LABELS: Record<string, string> = {
+  "clear-night": "Clear",
+  cloudy: "Cloudy",
+  exceptional: "Unusual weather",
+  fog: "Fog",
+  hail: "Hail",
+  lightning: "Thunder",
+  "lightning-rainy": "Thunderstorm",
+  partlycloudy: "Partly cloudy",
+  pouring: "Heavy rain",
+  rainy: "Rain",
+  snowy: "Snow",
+  "snowy-rainy": "Sleet",
+  sunny: "Sunny",
+  windy: "Windy",
+  "windy-variant": "Windy",
+};
+
+const weatherNow = computed(() => {
+  const { temperature, condition } = atmosphere.value;
+  if (temperature === undefined && !condition) return undefined;
+  return {
+    temperature: temperature === undefined ? undefined : `${Math.round(temperature)}°`,
+    condition: condition ? CONDITION_LABELS[condition] ?? condition : undefined,
+  };
+});
 
 const now = ref(new Date());
-const demoEnergy = ref(demoEnergyAt(Date.now()));
-let demoEnergyTimer: ReturnType<typeof setInterval> | undefined;
+// The reference view shows a full energy day so the card can be judged
+// without Home Assistant; manifests always use real runtime history.
+const demoEnergy = demoEnergyHistory();
+// The energy-flow reference animates a simulated day so the flows move.
+const demoFlow = ref(demoEnergyAt(Date.now()));
+let demoFlowTimer: ReturnType<typeof setInterval> | undefined;
 const showConnectionModal = ref(false);
 let clockTimer: ReturnType<typeof setInterval> | undefined;
 
@@ -53,11 +91,12 @@ const discoveryLabel = computed(() => {
   if (status.value === "connected") return `${semanticHome.value.areas.length} areas discovered`;
   if (status.value === "connecting") return "Connecting…";
   if (status.value === "error") return "Connection needs attention";
-  return "Demo mode · ready for Home Assistant";
+  return isDemoBuild ? "Sample home" : "Demo mode · ready for Home Assistant";
 });
 
 const dashboardLabel = computed(() =>
-  manifest.value ? `${manifest.value.name} · ${manifest.value.target.profile}` : `Reference · ${selectedProfile.value}`,
+  // Planned dashboard names already end in their profile ("Home · tablet-10").
+  manifest.value ? manifest.value.name : isDemoBuild ? "Live demo" : `Reference · ${selectedProfile.value}`,
 );
 
 const gridStyle = computed(() => ({
@@ -74,9 +113,12 @@ onMounted(async () => {
     now.value = new Date();
   }, 30_000);
 
-  demoEnergyTimer = setInterval(() => {
-    demoEnergy.value = demoEnergyAt(Date.now());
+  demoFlowTimer = setInterval(() => {
+    demoFlow.value = demoEnergyAt(Date.now());
   }, 1500);
+
+  // The hosted demo is a static page: there is no runtime to ask.
+  if (isDemoBuild) return;
 
   await loadManifest();
   await loadActionStatus();
@@ -91,14 +133,13 @@ onMounted(async () => {
 
 onUnmounted(() => {
   if (clockTimer) clearInterval(clockTimer);
-  if (demoEnergyTimer) clearInterval(demoEnergyTimer);
+  if (demoFlowTimer) clearInterval(demoFlowTimer);
 });
 </script>
 
 <template>
   <div class="app-shell">
-    <div class="ambient ambient-a" />
-    <div class="ambient ambient-b" />
+    <AtmosphereLayer :atmosphere="atmosphere" :mode="atmosphereMode" :quick="showSkySwitcher" />
 
     <main>
       <header class="topbar">
@@ -110,10 +151,15 @@ onUnmounted(() => {
 
         <div class="top-status">
           <button class="pill connect-pill" type="button" @click="showConnectionModal = true">
-            <component :is="status === 'connected' ? Wifi : WifiOff" :size="14" />
+            <component :is="isDemoBuild ? House : status === 'connected' ? Wifi : WifiOff" :size="14" />
             {{ discoveryLabel }}
             <Settings2 :size="13" />
           </button>
+
+          <span v-if="weatherNow" class="weather-now">
+            <strong v-if="weatherNow.temperature">{{ weatherNow.temperature }}</strong>
+            <span v-if="weatherNow.condition">{{ weatherNow.condition }}</span>
+          </span>
 
           <span class="clock">
             {{ now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) }}
@@ -129,7 +175,13 @@ onUnmounted(() => {
             {{ manifest.cards.length }} cards · {{ manifest.target.profile }} · {{ manifest.theme ?? "default theme" }}
           </p>
           <p v-else>
-            {{ manifestStatus === "loading" ? "Loading installation dashboard…" : "Reference view. Create a dashboard with CLI or MCP to replace it." }}
+            {{
+              isDemoBuild
+                ? "A sample home running in your browser. Install Homeframe to see your own."
+                : manifestStatus === "loading"
+                  ? "Loading installation dashboard…"
+                  : "Reference view. Create a dashboard with CLI or MCP to replace it."
+            }}
           </p>
           <p v-if="actionError" class="action-error">
             {{ actionError }}
@@ -151,9 +203,14 @@ onUnmounted(() => {
 
       <section v-else class="dashboard-grid">
         <RoomCard v-for="room in rooms" :key="room.name" v-bind="room" />
+        <EnergyCard
+          :watts="powerWatts ?? 1420"
+          :summary="status === 'connected' ? undefined : demoEnergy.summary"
+          :currency="demoEnergy.currency"
+        />
         <EnergyFlowCard
-          v-bind="demoEnergy"
-          :today-kwh="energyTodayKwh ?? demoEnergy.todayKwh"
+          v-bind="demoFlow"
+          :today-kwh="demoFlow.todayKwh"
           ev-name="Car"
           has-solar
           has-grid
@@ -168,6 +225,8 @@ onUnmounted(() => {
     </main>
 
     <BottomNav />
+
+    <SkySwitcher v-if="showSkySwitcher" :current-phase="atmosphere.phase" />
 
     <ConnectionModal
       v-if="showConnectionModal"

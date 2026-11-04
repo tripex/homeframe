@@ -24,13 +24,15 @@ const HOME_LEVEL_KINDS: readonly CapabilityKind[] = [
   "battery_power",
   "battery_level",
   "ev_power",
-  "electricity_price",
   "washer",
   "dryer",
   "vacuum",
   "lock",
   "alarm",
   "garage",
+  "price",
+  "sun",
+  "weather",
 ];
 
 /** Add one capability's entity id to a capability map, deduped and in order. */

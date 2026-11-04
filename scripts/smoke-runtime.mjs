@@ -4,7 +4,8 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { createServer } from "node:net";
 import os from "node:os";
 import path from "node:path";
-import { planAndSaveDashboards } from "../packages/tooling/dist/index.js";
+import { loadHomeSnapshot, planAndSaveDashboards } from "../packages/tooling/dist/index.js";
+import { startFakeHomeAssistant } from "./fake-home-assistant.mjs";
 
 
 /**
@@ -12,18 +13,17 @@ import { planAndSaveDashboards } from "../packages/tooling/dist/index.js";
  * Returns the child so the caller can stop it.
  */
 async function startRuntime({ dataDir, frameworkRoot, host, port, extraEnv = {} }) {
+  // A developer's local .env may carry real Home Assistant credentials; strip
+  // them so a test only talks to Home Assistant when it passes one explicitly.
+  const { HOMEFRAME_HA_URL: _url, HOMEFRAME_HA_TOKEN: _token, ...inherited } = process.env;
   const childEnv = {
-    ...process.env,
+    ...inherited,
     HOMEFRAME_DATA_DIR: dataDir,
     HOMEFRAME_ROOT: frameworkRoot,
     HOMEFRAME_HOST: host,
     HOMEFRAME_PORT: String(port),
     ...extraEnv,
   };
-  // A developer's local .env may carry real Home Assistant credentials;
-  // strip them so this smoke test always exercises the "disabled" path.
-  delete childEnv.HOMEFRAME_HA_URL;
-  delete childEnv.HOMEFRAME_HA_TOKEN;
 
   const runtime = spawn(
     process.execPath,
@@ -106,6 +106,8 @@ const baseUrl = `http://${host}:${port}`;
 
 let child;
 let controlChild;
+let liveChild;
+let fakeHomeAssistant;
 
 try {
   const home = JSON.parse(
@@ -236,9 +238,77 @@ try {
   assert.equal(stillRefused.status, 403);
   assert.equal(stillRefused.body.reason, "security-approval-required");
 
+  // Energy history needs a live Home Assistant connection.
+  const energyCard = mobileDashboards[0].cards.find((card) => card.card === "energy");
+  assert.ok(energyCard);
+  const energyOffline = await fetch(
+    `${baseUrl}/api/energy?dashboard=${dashboardId}&instance=${energyCard.instanceId}`,
+  );
+  assert.equal(energyOffline.status, 503);
+  assert.equal((await energyOffline.json()).reason, "home-assistant-unavailable");
+  assert.equal((await fetch(`${baseUrl}/api/energy?dashboard=${dashboardId}`)).status, 400);
+  assert.equal(
+    (await fetch(`${baseUrl}/api/energy?dashboard=${dashboardId}&instance=nope`)).status,
+    404,
+  );
+
+  // Full loop against a scripted Home Assistant: discovery → plan → energy.
+  fakeHomeAssistant = await startFakeHomeAssistant({ port: 0, token: "smoke-token" });
+  const liveHome = await loadHomeSnapshot({
+    homeAssistantUrl: fakeHomeAssistant.url,
+    homeAssistantToken: "smoke-token",
+    name: "Fake Home",
+  });
+  assert.deepEqual(liveHome.capabilities.sun, ["sun.sun"]);
+  assert.deepEqual(liveHome.capabilities.price, ["sensor.energi_data_service"]);
+
+  const [livePlan] = await planAndSaveDashboards(
+    { home: liveHome, targets: ["tablet-10"] },
+    { dataDir, frameworkRoot },
+  );
+  assert.deepEqual(livePlan.atmosphere, { mode: "live", sun: "sun.sun", weather: "weather.home" });
+  const liveEnergy = livePlan.cards.find((card) => card.card === "energy");
+  assert.equal(liveEnergy.bindings.price, "sensor.energi_data_service");
+
+  const livePort = await freePort();
+  liveChild = await startRuntime({
+    dataDir,
+    frameworkRoot,
+    host,
+    port: livePort,
+    extraEnv: { HOMEFRAME_HA_URL: fakeHomeAssistant.url, HOMEFRAME_HA_TOKEN: "smoke-token" },
+  });
+  const liveUrl = `http://${host}:${livePort}`;
+
+  const liveHealth = await (await fetch(`${liveUrl}/api/health`)).json();
+  assert.equal(liveHealth.homeAssistant, "connected");
+
+  const energyResponse = await fetch(
+    `${liveUrl}/api/energy?dashboard=${livePlan.id}&instance=${liveEnergy.instanceId}`,
+  );
+  assert.equal(energyResponse.status, 200);
+  const energy = await energyResponse.json();
+  assert.equal(energy.currency, "DKK");
+  assert.equal(energy.source, "change");
+  assert.equal(energy.summary.pricing, "dynamic");
+  assert.ok(energy.summary.hours.length >= 23);
+  assert.ok(energy.summary.currentPrice > 0);
+  // The fake meter records Wh; a sane daily total proves kWh was requested.
+  assert.ok(energy.summary.yesterdayKwh > 0 && energy.summary.yesterdayKwh < 100);
+  assert.ok(energy.summary.monthKwh > 0);
+
+  const notEnergy = livePlan.cards.find((card) => card.card === "room");
+  const wrongCard = await fetch(
+    `${liveUrl}/api/energy?dashboard=${livePlan.id}&instance=${notEnergy.instanceId}`,
+  );
+  assert.equal(wrongCard.status, 400);
+  assert.equal((await wrongCard.json()).reason, "not-an-energy-card");
+
   console.log("✓ runtime smoke test");
 } finally {
   await stopRuntime(child);
   await stopRuntime(controlChild);
+  await stopRuntime(liveChild);
+  await fakeHomeAssistant?.close();
   await rm(dataDir, { recursive: true, force: true });
 }

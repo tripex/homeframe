@@ -17,7 +17,7 @@ test("a grid meter or solar sensor plans the energy-flow card instead of energy"
         grid_power: ["sensor.grid"],
         solar_power: ["sensor.solar"],
         power: ["sensor.house"],
-        electricity_price: ["sensor.spot"],
+        price: ["sensor.spot"],
       },
     },
     targets: ["tablet-10", "mobile"],
@@ -30,7 +30,7 @@ test("a grid meter or solar sensor plans the energy-flow card instead of energy"
     solar_power: "sensor.solar",
     grid_power: "sensor.grid",
     power: "sensor.house",
-    electricity_price: "sensor.spot",
+    price: "sensor.spot",
   });
   assert.equal(flow.layout.w, 6);
 

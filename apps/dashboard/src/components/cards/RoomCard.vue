@@ -17,6 +17,12 @@ defineEmits<{
   "toggle-lights": [];
 }>();
 
+const lightsLabel = computed(() => {
+  const on = props.lightsOn ?? 0;
+  if (on === 0) return "Lights off";
+  return on === 1 ? "1 light on" : `${on} lights on`;
+});
+
 const formattedTemperature = computed(() =>
   props.temperature === undefined ? "—" : props.temperature.toFixed(1),
 );
@@ -51,9 +57,9 @@ const formattedTemperature = computed(() =>
         <span class="metric-label">Temperature</span>
       </div>
 
-      <div class="side-metric">
+      <div v-if="humidity !== undefined" class="side-metric">
         <Droplets :size="16" />
-        <strong>{{ humidity ?? "—" }}%</strong>
+        <strong>{{ humidity }}%</strong>
         <span>Humidity</span>
       </div>
     </div>
@@ -61,7 +67,7 @@ const formattedTemperature = computed(() =>
     <div class="card-footer">
       <span class="status-dot" :class="{ active }" />
       <Lightbulb :size="15" />
-      <span>{{ lightsOn ?? 0 }} lights on</span>
+      <span>{{ lightsLabel }}</span>
     </div>
   </GlassCard>
 </template>

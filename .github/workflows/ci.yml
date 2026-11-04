@@ -22,3 +22,6 @@ jobs:
 
       - name: Build, typecheck and smoke test
         run: npm run check
+
+      - name: Build the live demo
+        run: npm run build:demo

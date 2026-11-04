@@ -11,6 +11,7 @@
   "scripts": {
     "dev": "npm run dev -w @homeframe/dashboard",
     "build": "npm run build -w @homeframe/core && npm run build -w @homeframe/sdk && npm run build -w @homeframe/tooling && npm run build -w @homeframe/cli && npm run build -w @homeframe/mcp && npm run build -w @homeframe/dashboard && npm run build -w @homeframe/runtime",
+    "build:demo": "npm run build -w @homeframe/core && npm run build -w @homeframe/sdk && VITE_HOMEFRAME_DEMO=true HOMEFRAME_BASE=${HOMEFRAME_BASE:-/homeframe/} npm run build -w @homeframe/dashboard -- --outDir dist-demo",
     "typecheck": "npm run typecheck -ws --if-present",
     "test": "node scripts/check-component-entity-ids.mjs && node --test packages/core/test/*.mjs packages/tooling/test/*.mjs && node scripts/smoke-dashboard-engine.mjs && node scripts/smoke-home-snapshot.mjs && node scripts/smoke-runtime.mjs",
     "check:entity-ids": "node scripts/check-component-entity-ids.mjs",

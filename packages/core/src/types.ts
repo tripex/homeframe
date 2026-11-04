@@ -53,7 +53,6 @@ export type CapabilityKind =
   | "battery_power"
   | "battery_level"
   | "ev_power"
-  | "electricity_price"
   | "light"
   | "climate"
   | "cover"
@@ -68,6 +67,9 @@ export type CapabilityKind =
   | "washer"
   | "dryer"
   | "media"
+  | "sun"
+  | "weather"
+  | "price"
   | "generic";
 
 /**
