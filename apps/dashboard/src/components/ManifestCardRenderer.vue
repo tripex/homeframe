@@ -168,6 +168,15 @@ function securityStatusOf(kinds: string[]): "secure" | "attention" | "review" {
 
 const securityStatus = computed(() => securityStatusOf(["lock", "alarm", "garage"]));
 
+// The one-line variant is labelled "Locks", so it reports locks and garages
+// only; a disarmed alarm while someone is home is not an unlocked door.
+const compactSecurity = computed(() => (props.card.layout?.h ?? 3) <= 1);
+const lockStatus = computed(() =>
+  ["lock", "garage"].some((kind) => ids(props.card.bindings?.[kind]).length)
+    ? securityStatusOf(["lock", "garage"])
+    : securityStatus.value,
+);
+
 // --- Home scene -----------------------------------------------------------
 
 const sceneNight = computed(() => {
@@ -252,6 +261,12 @@ function numberProp(name: string): number | undefined {
   return typeof value === "number" ? value : undefined;
 }
 
+// The friendly name is often the title already; never show it twice.
+const applianceDetail = computed(() => {
+  const name = String(applianceState.value?.attributes.friendly_name ?? "");
+  return name && name !== applianceTitle.value ? name : undefined;
+});
+
 const vacuumRunning = computed(() => applianceState.value?.state === "cleaning");
 
 function toggleLights(): void {
@@ -310,7 +325,7 @@ function returnVacuumHome(): void {
       :kind="applianceKind"
       :title="applianceTitle"
       :state="applianceState?.state ?? 'Unavailable'"
-      :detail="String(applianceState?.attributes.friendly_name ?? '') || undefined"
+      :detail="applianceDetail"
       :controllable="canControl"
       :running="vacuumRunning"
       :pending="isPending(card.instanceId, 'start-pause') || isPending(card.instanceId, 'return-home')"
@@ -320,8 +335,8 @@ function returnVacuumHome(): void {
 
     <SecurityCard
       v-else-if="card.card === 'security'"
-      :status="securityStatus"
-      :compact="(card.layout?.h ?? 3) <= 1"
+      :status="compactSecurity ? lockStatus : securityStatus"
+      :compact="compactSecurity"
     />
 
     <HomeSceneCard

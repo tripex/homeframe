@@ -67,7 +67,8 @@
 .tablet-grid .glass-card { padding: 13px 16px; border-radius: 18px; min-height: 0; overflow: hidden; }
 .tablet-grid .glass-card:hover { transform: none; }
 .tablet-grid .card-header { margin-bottom: 4px; }
-.tablet-grid .zone { padding: 5px 0; }
+.tablet-grid .zone { padding: 4px 0; }
+.tablet-grid .zone-step { width: 24px; height: 24px; }
 
 /* Long lists fade out instead of being cut mid-line. */
 .tablet-grid .zone-list,
@@ -271,7 +272,8 @@
 
 .forecast-days li { display: grid; justify-items: center; gap: 2px; font-size: 13px; font-variant-numeric: tabular-nums; }
 .forecast-temps { display: flex; gap: 5px; }
-.forecast-day { color: #b8c0cd; font-size: 12px; text-transform: capitalize; }
+.forecast-day { color: #b8c0cd; font-size: 12px; }
+.forecast-day::first-letter { text-transform: uppercase; }
 .forecast-icon { color: #dfe6ef; }
 
 /* ---- Agenda -------------------------------------------------------------- */
@@ -281,7 +283,7 @@
 .agenda-group h3 { margin: 0 0 2px; color: #9099a8; font-size: 11px; font-weight: 650; letter-spacing: 0.08em; text-transform: uppercase; }
 
 .agenda-event { display: flex; gap: 10px; margin: 0; font-size: 13px; line-height: 1.5; min-width: 0; }
-.agenda-when { flex: none; width: 70px; color: #9aa3b2; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.agenda-when { flex: none; width: 84px; color: #9aa3b2; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .agenda-summary { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ---- Presence ------------------------------------------------------------ */
