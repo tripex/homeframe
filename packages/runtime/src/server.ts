@@ -22,7 +22,13 @@ import {
   forecastForCard,
   streamFile,
 } from "./card-data.js";
-import { isAllowedIngressClient, readAddonOptions, resolveConnection } from "./config.js";
+import {
+  AUTO_DASHBOARD_ID,
+  firstDashboardAction,
+  isAllowedIngressClient,
+  readAddonOptions,
+  resolveConnection,
+} from "./config.js";
 import { EnergyRequestError, energyForCard } from "./energy.js";
 import { RuntimeHomeAssistant } from "./home-assistant.js";
 
@@ -58,20 +64,31 @@ await homeAssistant.start(connection);
 /**
  * An add-on user cannot easily run the CLI inside the container, so the
  * first start fills in the home-tablet template from the live home. Later
- * starts never touch existing dashboards.
+ * starts never touch existing dashboards, unless the user switches on the
+ * `regenerate_dashboard` option: then the auto-created `home-tablet`
+ * dashboard (and only that one, and only while it is still a template
+ * dashboard) is rebuilt from the current template on every start, so
+ * template fixes from an update reach the screen.
  */
 async function bootstrapFirstDashboard(): Promise<void> {
   if (!runningAsAddon || homeAssistant.snapshot().status !== "connected") return;
-  if ((await listDashboards()).length) return;
+  const dashboards = await listDashboards();
+  const action = firstDashboardAction(dashboards, addonOptions.regenerate_dashboard === true);
+  if (action === "keep") return;
 
   try {
     const home = homeSnapshotFromSemanticHome(homeAssistant.snapshot().semanticHome, "Home");
     const dashboard = await createDashboardFromTemplate("home-tablet", home, {
-      id: "home-tablet",
+      id: AUTO_DASHBOARD_ID,
       name: addonOptions.locale === "da" ? "Hjem" : "Home",
       locale: addonOptions.locale,
+      replace: action === "regenerate",
     });
-    console.log(`Created first dashboard ${dashboard.id} from the home-tablet template`);
+    console.log(
+      action === "regenerate"
+        ? `Regenerated dashboard ${dashboard.id} from the home-tablet template (turn regenerate_dashboard off to keep later edits)`
+        : `Created first dashboard ${dashboard.id} from the home-tablet template`,
+    );
   } catch (error) {
     console.error(`Could not create a first dashboard: ${error instanceof Error ? error.message : String(error)}`);
   }

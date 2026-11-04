@@ -26,6 +26,12 @@ protects it).
 | --- | --- | --- |
 | `allow_control` | `true` | Dashboards may switch lights, set climate targets and start/dock a vacuum. |
 | `locale` | `en` | Language of the first dashboard (`en` or `da`). |
+| `regenerate_dashboard` | `false` | Rebuild the auto-created `home-tablet` dashboard from the current template on every start (only while it is still template-generated). Turn on after an update, restart once, turn off. |
+
+Why an option and not automatic: dashboards are installation data that
+agents and users refine (`add_card`, `set_binding`…), and the stored manifest
+does not record whether it was edited since it was generated. Replacing it
+silently on update could throw such work away, so it only happens when asked.
 
 Locks, alarms and garage doors are always status-only. A screen cannot change
 them whatever the options say, and the runtime refuses any card action whose

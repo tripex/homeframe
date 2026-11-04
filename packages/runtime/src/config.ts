@@ -67,7 +67,31 @@ export type AddonOptions = {
   allow_control?: boolean;
   /** UI language for the dashboard created on first start. */
   locale?: string;
+  /** Rebuild the auto-created dashboard from the template on start. */
+  regenerate_dashboard?: boolean;
 };
+
+/** Id of the dashboard the add-on creates from the home-tablet template. */
+export const AUTO_DASHBOARD_ID = "home-tablet";
+
+/**
+ * What the add-on does with the home-tablet template on start:
+ * - `create` when there is no dashboard at all (first start),
+ * - `regenerate` when the user asked for it and the `home-tablet` dashboard
+ *   is still template-generated (a dashboard an agent or user rebuilt by
+ *   other means is never overwritten), or is missing,
+ * - `keep` otherwise. Other dashboards are never touched.
+ */
+export function firstDashboardAction(
+  dashboards: Array<{ id: string; generatedBy?: string }>,
+  regenerate: boolean,
+): "create" | "regenerate" | "keep" {
+  if (!dashboards.length) return "create";
+  if (!regenerate) return "keep";
+  const current = dashboards.find((dashboard) => dashboard.id === AUTO_DASHBOARD_ID);
+  if (!current) return "create";
+  return current.generatedBy?.startsWith("homeframe-template:") ? "regenerate" : "keep";
+}
 
 export function readAddonOptions(dataDir: string): AddonOptions {
   try {
