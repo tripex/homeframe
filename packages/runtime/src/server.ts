@@ -34,7 +34,7 @@ import {
   writeSeeded,
 } from "./config.js";
 import { EnergyRequestError, energyForCard } from "./energy.js";
-import { RuntimeHomeAssistant } from "./home-assistant.js";
+import { HomeAssistantUnavailableError, RuntimeHomeAssistant } from "./home-assistant.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(here, "../../..");
@@ -62,7 +62,23 @@ const controlActionsEnabled =
   process.env.HOMEFRAME_ALLOW_CONTROL === "true" || addonOptions.allow_control === true;
 const maxActionBodyBytes = 16 * 1024;
 
-const homeAssistant = new RuntimeHomeAssistant();
+let bootstrapping: Promise<void> | undefined;
+function bootstrapOnce(): Promise<void> {
+  // Once per process: reconnects after a Home Assistant restart must not
+  // regenerate dashboards again. Sharing the promise lets startup wait for a
+  // bootstrap that the first connect already began.
+  if (!bootstrapping && homeAssistant.snapshot().status === "connected") bootstrapping = bootstrapDashboards();
+  return bootstrapping ?? Promise.resolve();
+}
+
+// When Home Assistant is not up yet (the add-on started first), the runtime
+// serves the screens anyway and keeps retrying in the background; dashboards
+// are then bootstrapped on the first successful connect instead of never.
+const homeAssistant = new RuntimeHomeAssistant({
+  onConnected: () => {
+    bootstrapOnce().catch((error) => console.error(`Could not bootstrap dashboards: ${error instanceof Error ? error.message : String(error)}`));
+  },
+});
 await homeAssistant.start(connection);
 
 /**
@@ -120,7 +136,7 @@ async function bootstrapDashboards(): Promise<void> {
   }
 }
 
-await bootstrapDashboards();
+await bootstrapOnce();
 
 const mime: Record<string, string> = {
   ".css": "text/css; charset=utf-8",
@@ -132,6 +148,8 @@ const mime: Record<string, string> = {
   ".webp": "image/webp",
   ".ico": "image/x-icon",
 };
+
+const HOME_ASSISTANT_UNAVAILABLE = { error: "Home Assistant is not connected", reason: "home-assistant-unavailable" };
 
 function json(response: import("node:http").ServerResponse, status: number, value: unknown) {
   response.writeHead(status, {
@@ -236,6 +254,11 @@ async function handleAction(
       json(response, error.status, { error: error.message, reason: error.reason });
       return;
     }
+    // The connection can drop between the status check and the call.
+    if (error instanceof HomeAssistantUnavailableError) {
+      json(response, 503, HOME_ASSISTANT_UNAVAILABLE);
+      return;
+    }
     json(response, 502, {
       error: error instanceof Error ? error.message : String(error),
       reason: "service-call-failed",
@@ -285,6 +308,10 @@ async function handleEnergy(
       json(response, error.status, { error: error.message, reason: error.reason });
       return;
     }
+    if (error instanceof HomeAssistantUnavailableError) {
+      json(response, 503, HOME_ASSISTANT_UNAVAILABLE);
+      return;
+    }
     json(response, 502, {
       error: error instanceof Error ? error.message : String(error),
       reason: "statistics-failed",
@@ -327,6 +354,10 @@ async function handleCardData(
       json(response, error.status, { error: error.message, reason: error.reason });
       return;
     }
+    if (error instanceof HomeAssistantUnavailableError) {
+      json(response, 503, HOME_ASSISTANT_UNAVAILABLE);
+      return;
+    }
     json(response, 502, { error: error instanceof Error ? error.message : String(error), reason: "service-call-failed" });
   }
 }
@@ -352,6 +383,10 @@ async function handleCamera(entityId: string, response: import("node:http").Serv
     response.writeHead(200, { "content-type": image.contentType, "cache-control": "no-store" });
     response.end(image.body);
   } catch (error) {
+    if (error instanceof HomeAssistantUnavailableError) {
+      json(response, 503, HOME_ASSISTANT_UNAVAILABLE);
+      return;
+    }
     json(response, 502, { error: error instanceof Error ? error.message : String(error), reason: "camera-failed" });
   }
 }
@@ -414,8 +449,11 @@ const server = createServer(async (request, response) => {
     }
 
     if (url.pathname === "/api/ha/snapshot") {
+      // While disconnected the body still carries the last known home, so a
+      // screen opened during an outage shows (clearly stale) values; the 503
+      // tells scripts and the CLI that the data is not live.
       const snapshot = homeAssistant.snapshot();
-      json(response, snapshot.status === "error" ? 503 : 200, snapshot);
+      json(response, snapshot.status === "disconnected" ? 503 : 200, snapshot);
       return;
     }
 

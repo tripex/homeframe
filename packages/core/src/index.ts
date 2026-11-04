@@ -4,4 +4,5 @@ export * from "./names.js";
 export * from "./atmosphere.js";
 export * from "./energy.js";
 export * from "./read-services.js";
+export * from "./connection.js";
 export * from "./websocket.js";

@@ -67,6 +67,20 @@ tablet ──ingress (HA login)──▶ Homeframe runtime :8099 ──SUPERVISO
   `/api/hassio_ingress/<token>/` prefix.
 - Cameras are proxied as stills (`api/camera_proxy/<camera>`), only for
   cameras that a saved dashboard binds.
+- Home Assistant restarts are expected. The runtime pings Home Assistant
+  every 30 s (no answer within 10 s counts as a lost connection), notices a
+  closed connection right away and reconnects after 1, 2, 5, 10 and then
+  every 30 s, forever. That includes the add-on starting before Home
+  Assistant: it serves the screens and builds its dashboards once Home
+  Assistant answers. After each reconnect it reloads the whole home and
+  pushes it to every screen, so nothing changed during the outage is missed.
+- While either link is down (runtime ↔ Home Assistant, or screen ↔ runtime
+  for more than a few seconds) the screen keeps the last values, dims the
+  cards, pauses the controls and shows "Lost connection to Home Assistant —
+  showing last known values · Reconnecting… · Last updated <time>". It clears
+  by itself once the data is live again; no reload needed. Service calls,
+  forecasts, statistics and cameras answer 503 `home-assistant-unavailable`
+  meanwhile.
 
 ## Updates and data
 

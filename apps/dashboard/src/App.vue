@@ -15,6 +15,7 @@ import SecurityCard from "./components/cards/SecurityCard.vue";
 import AtmosphereLayer from "./components/atmosphere/AtmosphereLayer.vue";
 import SkySwitcher from "./components/demo/SkySwitcher.vue";
 import BottomNav from "./components/layout/BottomNav.vue";
+import ConnectionBanner from "./components/layout/ConnectionBanner.vue";
 import SideNav from "./components/layout/SideNav.vue";
 import ManifestCardRenderer from "./components/ManifestCardRenderer.vue";
 import ConnectionModal from "./components/settings/ConnectionModal.vue";
@@ -34,6 +35,9 @@ const {
   connectRuntime,
   connect,
   error,
+  liveData,
+  lastFreshAt,
+  now: liveDataNow,
 } = useHomeAssistant();
 const { rooms, powerWatts, climateZones } = useDashboardData(
   status,
@@ -205,12 +209,23 @@ onUnmounted(() => {
         </div>
       </header>
 
+      <ConnectionBanner
+        v-if="liveData.stale && liveData.reason"
+        :reason="liveData.reason"
+        :last-fresh-at="lastFreshAt"
+        :now="liveDataNow"
+      />
+
       <p v-if="actionError" class="action-error tablet-error">
         {{ actionError }}
         <button type="button" class="dismiss-error" @click="actionError = undefined">✕</button>
       </p>
 
-      <section class="dashboard-grid manifest-grid tablet-grid" :class="{ 'desktop-grid': isDesktop }" :style="gridStyle">
+      <section
+        class="dashboard-grid manifest-grid tablet-grid"
+        :class="{ 'desktop-grid': isDesktop, 'data-stale': liveData.stale }"
+        :style="gridStyle"
+      >
         <ManifestCardRenderer
           v-for="card in manifest.cards"
           :key="card.instanceId"
@@ -228,6 +243,13 @@ onUnmounted(() => {
 
   <div v-else class="app-shell">
     <AtmosphereLayer :atmosphere="atmosphere" :mode="atmosphereMode" :quick="showSkySwitcher" />
+
+    <ConnectionBanner
+      v-if="liveData.stale && liveData.reason"
+      :reason="liveData.reason"
+      :last-fresh-at="lastFreshAt"
+      :now="liveDataNow"
+    />
 
     <main>
       <header class="topbar">
@@ -279,7 +301,12 @@ onUnmounted(() => {
         <button type="button">Ask home</button>
       </section>
 
-      <section v-if="manifest" class="dashboard-grid manifest-grid" :style="gridStyle">
+      <section
+        v-if="manifest"
+        class="dashboard-grid manifest-grid"
+        :class="{ 'data-stale': liveData.stale }"
+        :style="gridStyle"
+      >
         <ManifestCardRenderer
           v-for="card in manifest.cards"
           :key="card.instanceId"

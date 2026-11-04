@@ -1,4 +1,6 @@
 import { computed, ref } from "vue";
+import { translate } from "../i18n";
+import { dataStale } from "./useHomeAssistant";
 
 export type ControlActionsStatus = "unknown" | "enabled" | "disabled";
 
@@ -80,6 +82,13 @@ export function useDashboardActions() {
     actionId: string,
     input?: DashboardActionInput,
   ): Promise<boolean> {
+    // A tap on a value that may be out of date could do the opposite of what
+    // the user sees (toggle a light that is already off). Refuse until fresh.
+    if (dataStale.value) {
+      lastError.value = translate("connection.controlsPaused");
+      return false;
+    }
+
     const key = pendingKey(instanceId, actionId);
     const next = new Set(pending.value);
     next.add(key);
@@ -119,7 +128,8 @@ export function useDashboardActions() {
 
   // Unknown counts as allowed so buttons are usable in development before
   // /api/health has answered; the server still enforces the real check.
-  const canControl = computed(() => controlActions.value !== "disabled");
+  // Controls disappear while the shown values may be stale (see run()).
+  const canControl = computed(() => controlActions.value !== "disabled" && !dataStale.value);
 
   return {
     controlActions,

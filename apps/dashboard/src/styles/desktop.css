@@ -193,3 +193,10 @@
 .desktop-shell .side-nav-people { gap: calc(10 * var(--s)); }
 .desktop-shell .side-nav-people li { gap: calc(12 * var(--s)); font-size: calc(15 * var(--s)); padding: 0 calc(8 * var(--s)); }
 .desktop-shell .side-nav-people .person-avatar { width: calc(38 * var(--s)) !important; height: calc(38 * var(--s)) !important; font-size: calc(13.5 * var(--s)) !important; }
+
+/* ---- Connection banner: same design, scaled with the window ----------- */
+
+.desktop-shell .connection-banner { top: calc(14 * var(--s)); gap: calc(12 * var(--s)); padding: calc(11 * var(--s)) calc(18 * var(--s)) calc(11 * var(--s)) calc(14 * var(--s)); border-radius: calc(16 * var(--s)); }
+.desktop-shell .connection-banner-icon { width: calc(18 * var(--s)); height: calc(18 * var(--s)); }
+.desktop-shell .connection-banner-text strong { font-size: calc(14 * var(--s)); }
+.desktop-shell .connection-banner-text > span { font-size: calc(12 * var(--s)); }

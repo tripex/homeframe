@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.4.1
+
+- Homeframe reconnects to Home Assistant by itself after a restart, an update
+  or a network drop, and when the add-on starts before Home Assistant does
+  (it used to keep showing old values until the add-on was restarted). It
+  retries after 1, 2, 5, 10 and then every 30 seconds, and a ping every
+  30 seconds catches connections that died without closing.
+- After reconnecting, every screen gets the whole home again, so changes made
+  during the outage show up without reloading the page.
+- While the connection is down the screen says so: "Forbindelse til Home
+  Assistant mistet — viser senest kendte værdier · Genforbinder… · Sidst
+  opdateret 20.37 (for 2 minutter siden)" (in English for English
+  dashboards). The cards are dimmed and the controls paused until the values
+  are live again; the message disappears by itself.
+
 ## 0.4.0
 
 - New `home-desktop` dashboard for a 27" monitor (2560×1440, equally at

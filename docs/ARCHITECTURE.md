@@ -90,6 +90,8 @@ screen  →  POST /api/actions { dashboardId, instanceId, actionId }
 
 Cards that need more than states read through the runtime as well, always by dashboard and card instance: `api/forecast` and `api/agenda` (via the read-only `weather.get_forecasts` and `calendar.get_events`), `api/camera_proxy/<camera>` (stills, only for cameras on a saved dashboard) and `api/assets/<name>` (the installation's own house photos).
 
+The Home Assistant connection heals itself (`packages/runtime/src/home-assistant.ts`). The core client reports an unintended drop exactly once (`onDisconnect`; a deliberate `close()` never does) and sends Home Assistant `ping`s, because a vanished host can leave a socket looking open for minutes. The runtime then reports status `disconnected` on its event stream, keeps the last known states, retries with backoff (1, 2, 5, 10, then 30 s, with a little jitter, forever; also when Home Assistant is not up at start) and, once back, fetches a fresh snapshot, rediscovers the home, resubscribes and sends every screen a full `snapshot` event: Home Assistant does not replay changes made while we were away. Screens apply the same rule to their own event stream: after it was interrupted they reload `api/ha/snapshot`. The pure decision of when a screen calls its data stale lives in `packages/core/src/connection.ts` (`liveDataHealth`), next to the backoff (`reconnectDelayMs`).
+
 The runtime finds Home Assistant in one of three ways (`packages/runtime/src/config.ts`): `HOMEFRAME_HA_URL` + `HOMEFRAME_HA_TOKEN`, the Supervisor proxy when it runs as an add-on (`SUPERVISOR_TOKEN`, see `docs/ADDON.md`), or not at all.
 
 ## Dependency direction

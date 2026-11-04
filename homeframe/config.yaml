@@ -1,7 +1,7 @@
 # Home Assistant add-on (a.k.a. "app") for Homeframe.
 # Reference: https://developers.home-assistant.io/docs/apps/configuration
 name: Homeframe
-version: "0.4.0"
+version: "0.4.1"
 slug: homeframe
 description: Calm, AI-first dashboards for wall tablets and desktop monitors, served inside Home Assistant.
 url: https://github.com/tripex/homeframe

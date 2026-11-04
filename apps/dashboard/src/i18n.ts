@@ -102,6 +102,12 @@ const en = {
   "energyFlow.cheapNow": "Cheap now",
   "energyFlow.expensiveNow": "Expensive now",
   "energyFlow.spotPrice": "Spot price",
+  "connection.lostHomeAssistant": "Lost connection to Home Assistant — showing last known values",
+  "connection.lostRuntime": "Lost connection to Homeframe — showing last known values",
+  "connection.notYetConnected": "Not connected to Home Assistant yet",
+  "connection.reconnecting": "Reconnecting…",
+  "connection.lastUpdated": "Last updated {time} ({ago})",
+  "connection.controlsPaused": "Controls are paused until the connection is back.",
 };
 
 export type MessageKey = keyof typeof en;
@@ -200,6 +206,12 @@ const da: Partial<Record<MessageKey, string>> = {
   "energyFlow.cheapNow": "Billig nu",
   "energyFlow.expensiveNow": "Dyr nu",
   "energyFlow.spotPrice": "Spotpris",
+  "connection.lostHomeAssistant": "Forbindelse til Home Assistant mistet — viser senest kendte værdier",
+  "connection.lostRuntime": "Forbindelse til Homeframe mistet — viser senest kendte værdier",
+  "connection.notYetConnected": "Endnu ingen forbindelse til Home Assistant",
+  "connection.reconnecting": "Genforbinder…",
+  "connection.lastUpdated": "Sidst opdateret {time} ({ago})",
+  "connection.controlsPaused": "Betjening er sat på pause, indtil forbindelsen er tilbage.",
 };
 
 const dictionaries: Record<string, Partial<Record<MessageKey, string>>> = { en, da };
@@ -227,6 +239,15 @@ export function useI18n() {
     /** True when the language has a translation for this key (e.g. weather states). */
     has: (key: string): key is MessageKey => key in en,
     number: (value: number) => numberFormat.value.format(value),
+    /** "2 minutes ago" / "for 2 minutter siden" for a duration in the past. */
+    ago: (ms: number) => {
+      const format = new Intl.RelativeTimeFormat(locale.value, { numeric: "auto" });
+      const seconds = Math.round(ms / 1000);
+      if (seconds < 60) return format.format(-seconds, "second");
+      if (seconds < 3600) return format.format(-Math.floor(seconds / 60), "minute");
+      if (seconds < 86_400) return format.format(-Math.floor(seconds / 3600), "hour");
+      return format.format(-Math.floor(seconds / 86_400), "day");
+    },
     time: (date: Date) => date.toLocaleTimeString(locale.value, { hour: "2-digit", minute: "2-digit" }),
     weekday: (date: Date) => date.toLocaleDateString(locale.value, { weekday: "short" }),
     longDate: (date: Date) => date.toLocaleDateString(locale.value, { weekday: "long", day: "numeric", month: "long" }),

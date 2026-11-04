@@ -3,7 +3,7 @@
  * A tiny scripted Home Assistant for tests and local demos.
  *
  * It speaks just enough of the Home Assistant WebSocket API for Homeframe:
- * auth, the area/device/entity registries, get_states, state_changed
+ * auth, ping, the area/device/entity registries, get_states, state_changed
  * subscriptions, recorder statistics and call_service. Data is synthetic but
  * shaped like a real Danish home: sun.sun, a weather entity, an Energi Data
  * Service-style price sensor with 24 hourly prices, and an energy meter with
@@ -11,6 +11,7 @@
  *
  *   node scripts/fake-home-assistant.mjs            # listens on :8123
  *   FAKE_HA_PORT=8124 FAKE_HA_WEATHER=snowy node scripts/fake-home-assistant.mjs
+ *   FAKE_HA_STATES='{"sensor.living_room_temperature":"23.4"}' node scripts/fake-home-assistant.mjs
  *
  * Then start the runtime against it:
  *
@@ -207,7 +208,7 @@ function serviceResponse(message, now) {
   return undefined;
 }
 
-function buildHome(now) {
+function buildHome(now, overrides = {}) {
   const today = new Date(now);
   today.setHours(0, 0, 0, 0);
   const isoNow = now.toISOString();
@@ -259,6 +260,11 @@ function buildHome(now) {
     entity("person.ben", "not_home", { friendly_name: "Ben" }),
     entity("weather.home", weather, { friendly_name: "Home", temperature: Number(process.env.FAKE_HA_TEMPERATURE ?? 8.4), temperature_unit: "°C", humidity: 87 }),
   ];
+
+  // Tests and demos pin or change single states (see setState).
+  for (const item of entities) {
+    if (item.state.entity_id in overrides) item.state.state = String(overrides[item.state.entity_id]);
+  }
 
   return {
     areas: [
@@ -372,9 +378,20 @@ function decodeFrames(buffer) {
   return { messages, rest: buffer.subarray(offset) };
 }
 
-export function startFakeHomeAssistant({ port = 8123, host = "127.0.0.1", token } = {}) {
+/**
+ * `states` pins entity states (`{ "sensor.x": "21.5" }`). The returned handle
+ * can change a state live (`setState`, sent to subscribers like a real
+ * state_changed event), drop every connection without stopping the server
+ * (`dropConnections`, like a network blip) and stop answering pings
+ * (`ignorePings = true`, like a frozen host) so reconnect logic can be tested.
+ */
+export function startFakeHomeAssistant({ port = 8123, host = "127.0.0.1", token, states = {} } = {}) {
   const serviceCalls = [];
   const sockets = new Set();
+  const overrides = { ...states };
+  /** Sockets with a state_changed subscription: send function -> subscription id. */
+  const subscribers = new Map();
+  const control = { ignorePings: false };
   const cameraRequests = [];
   const server = createServer((request, response) => {
     // REST camera proxy, both as Core serves it and behind the Supervisor.
@@ -436,7 +453,7 @@ export function startFakeHomeAssistant({ port = 8123, host = "127.0.0.1", token 
         }
         if (!authenticated) continue;
 
-        const home = buildHome(now);
+        const home = buildHome(now, overrides);
         const reply = (result) => send({ id: message.id, type: "result", success: true, result });
 
         switch (message.type) {
@@ -453,7 +470,11 @@ export function startFakeHomeAssistant({ port = 8123, host = "127.0.0.1", token 
             reply(home.states);
             break;
           case "subscribe_events":
+            subscribers.set(send, message.id);
             reply(null);
+            break;
+          case "ping":
+            if (!control.ignorePings) send({ id: message.id, type: "pong" });
             break;
           case "recorder/statistics_during_period":
             reply(statistics(message, now));
@@ -470,6 +491,7 @@ export function startFakeHomeAssistant({ port = 8123, host = "127.0.0.1", token 
       }
     });
 
+    socket.on("close", () => subscribers.delete(send));
     socket.on("error", () => socket.destroy());
   });
 
@@ -477,8 +499,27 @@ export function startFakeHomeAssistant({ port = 8123, host = "127.0.0.1", token 
     server.listen(port, host, () => {
       resolve({
         url: `http://${host}:${server.address().port}`,
+        port: server.address().port,
         serviceCalls,
         cameraRequests,
+        get ignorePings() {
+          return control.ignorePings;
+        },
+        set ignorePings(value) {
+          control.ignorePings = value;
+        },
+        /** Change one entity's state and tell every subscriber, like Home Assistant does. */
+        setState(entityId, state) {
+          overrides[entityId] = state;
+          const newState = buildHome(new Date(), overrides).states.find((item) => item.entity_id === entityId);
+          for (const [send, id] of subscribers) {
+            send({ id, type: "event", event: { event_type: "state_changed", data: { entity_id: entityId, new_state: newState } } });
+          }
+        },
+        /** Cut every WebSocket abruptly but keep listening, like a network blip. */
+        dropConnections() {
+          for (const socket of sockets) socket.destroy();
+        },
         close: () =>
           new Promise((done) => {
             for (const socket of sockets) socket.destroy();
@@ -492,6 +533,10 @@ export function startFakeHomeAssistant({ port = 8123, host = "127.0.0.1", token 
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const port = Number(process.env.FAKE_HA_PORT ?? 8123);
-  const fake = await startFakeHomeAssistant({ port, host: process.env.FAKE_HA_HOST ?? "127.0.0.1" });
+  const fake = await startFakeHomeAssistant({
+    port,
+    host: process.env.FAKE_HA_HOST ?? "127.0.0.1",
+    states: process.env.FAKE_HA_STATES ? JSON.parse(process.env.FAKE_HA_STATES) : {},
+  });
   console.log(`Fake Home Assistant listening at ${fake.url} (any token is accepted)`);
 }
