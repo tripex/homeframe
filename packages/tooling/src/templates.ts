@@ -3,6 +3,7 @@ import path from "node:path";
 import type {
   DashboardCard,
   DashboardManifest,
+  DashboardStandIn,
   DeviceProfileId,
   EntityBinding,
 } from "@homeframe/sdk";
@@ -21,6 +22,21 @@ import { atmosphereFor, slug, targetFor } from "./planner.js";
  */
 export type TemplateBindings = Record<string, string>;
 
+/**
+ * Cards that borrow a stack slot while they have something to say: every
+ * appliance of the home becomes an `appliance` stand-in on the slot's card,
+ * and the screen shows it in that slot while it runs or is finished (see
+ * `DashboardStandIn`). The layout itself never changes, so a screen cannot
+ * start to scroll because the washer was turned on.
+ */
+export type TemplateStandIns = {
+  source: "appliances";
+  card: string;
+  /** Prefix; stand-ins are numbered `appliance-1`, `appliance-2`… */
+  instanceId: string;
+  max?: number;
+};
+
 /** One card in a stacked region. */
 export type TemplateStackCard = {
   instanceId: string;
@@ -31,7 +47,7 @@ export type TemplateStackCard = {
   /** Skip the card unless at least one of these capability kinds exists. */
   requires?: string[];
   /** Tried in order when `requires` is not met, e.g. a vacuum when there is no calendar. */
-  otherwise?: Array<Omit<TemplateStackCard, "otherwise" | "h" | "priority" | "grow">>;
+  otherwise?: Array<Omit<TemplateStackCard, "otherwise" | "h" | "priority" | "grow" | "standIns">>;
   /**
    * With a region `rows` budget: cards are kept by descending priority until
    * the budget is used, then laid out in listed order. Defaults to 0.
@@ -43,6 +59,8 @@ export type TemplateStackCard = {
    * home without an energy card gets its usual tall agenda back.
    */
   grow?: number;
+  /** Appliances that take this slot while active, whichever alternative fills it. */
+  standIns?: TemplateStandIns;
 };
 
 /** Cards stacked top to bottom in a fixed column span. */
@@ -212,6 +230,7 @@ function fitStack(
       ...(choice.props ? { props: choice.props } : {}),
       ...(preferred.priority !== undefined ? { priority: preferred.priority } : {}),
       ...(preferred.grow !== undefined ? { grow: preferred.grow } : {}),
+      ...(preferred.standIns ? { standIns: preferred.standIns } : {}),
     };
     return [{ slot, index }];
   });
@@ -235,6 +254,17 @@ function fitStack(
     used += grower.h - before;
   }
   return shown;
+}
+
+/** The home's appliances as stand-ins, or nothing when it has none. */
+function standInsFor(spec: TemplateStandIns | undefined, home: HomeSnapshot): DashboardStandIn[] {
+  if (!spec || spec.source !== "appliances") return [];
+  return (home.appliances ?? []).slice(0, spec.max ?? 3).map((appliance, index) => ({
+    instanceId: `${spec.instanceId}-${index + 1}`,
+    card: spec.card,
+    bindings: { ...appliance.entities },
+    props: { kind: appliance.kind, name: appliance.name },
+  }));
 }
 
 /**
@@ -441,12 +471,14 @@ export function instantiateTemplate(
   for (const region of template.regions.filter(isStack)) {
     let y = 0;
     for (const slot of fitStack(region, lookup, region.rows ?? stackBudget)) {
+      const standIns = standInsFor(slot.standIns, home);
       cards.push({
         instanceId: slot.instanceId,
         card: slot.card,
         ...(slot.props ? { props: { ...slot.props } } : {}),
         bindings: resolveBindings(slot.bindings, lookup),
         layout: { x: region.x, y, w: region.w, h: slot.h },
+        ...(standIns.length ? { standIns } : {}),
       });
       y += slot.h;
     }

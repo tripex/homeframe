@@ -1,5 +1,26 @@
 # Changelog
 
+## 0.5.0
+
+- New appliance card for washers, dryers and dishwashers: "38 min tilbage ·
+  Færdig kl. 14.35", the program and today's energy while it runs, and
+  "Vasketøjet er færdigt" / "Opvasken er færdig" when it is done. A small
+  drawing of the machine turns its drum only while it runs (still with
+  reduced motion). Status only, no buttons.
+- Appliances are found per device for LG ThinQ (also SmartThinQ), Home
+  Connect (Bosch/Siemens), Miele, SmartThings, Electrolux and generic status
+  sensors, named in Danish or English. Without an integration a smart plug
+  named after the machine is enough: running above 10 W, finished when it
+  has gone quiet.
+- `home-tablet` and `home-desktop` show the appliance in the agenda/vacuum
+  slot only while it runs or is finished; otherwise nothing changes. In the
+  tall desktop slot the agenda stays visible below it. Homes without
+  appliances get exactly the same dashboards as before.
+- Regenerate the dashboards (`regenerate_dashboard`) to add the appliance to
+  existing `home-tablet`/`home-desktop` dashboards.
+- Thanks to skyrotter/ha-appliance-electromenager-cards (MIT) for ideas for
+  the status rules.
+
 ## 0.4.1
 
 - Homeframe reconnects to Home Assistant by itself after a restart, an update

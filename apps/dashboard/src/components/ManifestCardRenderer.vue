@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed } from "vue";
+import { applianceIsActive, applianceUrgency, type ApplianceKind } from "@homeframe/core";
 import type { DashboardCard, EntityBinding } from "@homeframe/sdk";
 import type { AgendaEvent, Atmosphere, ForecastDay, HassState } from "@homeframe/core";
 import { cameraTitle as streamlessTitle, tidyName } from "@homeframe/core";
 import type { AtmosphereMode } from "@homeframe/sdk";
 import AgendaCard from "./cards/AgendaCard.vue";
 import ApplianceCard from "./cards/ApplianceCard.vue";
+import VacuumCard from "./cards/VacuumCard.vue";
 import CameraCard from "./cards/CameraCard.vue";
 import ForecastCard from "./cards/ForecastCard.vue";
 import HomeSceneCard, { type SceneChip } from "./cards/HomeSceneCard.vue";
@@ -16,6 +18,7 @@ import EnergyFlowCard from "./cards/EnergyFlowCard.vue";
 import GlassCard from "./cards/GlassCard.vue";
 import RoomCard from "./cards/RoomCard.vue";
 import SecurityCard from "./cards/SecurityCard.vue";
+import { useApplianceReadings } from "../composables/useApplianceReadings";
 import { useCardData } from "../composables/useCardData";
 import { useDashboardActions } from "../composables/useDashboardActions";
 import { useEnergyHistory } from "../composables/useEnergyHistory";
@@ -111,31 +114,90 @@ const climateZones = computed(() =>
   }),
 );
 
-const applianceCapability = computed(() => {
-  if (props.card.card === "vacuum") return "vacuum";
-  if (props.card.bindings?.dryer) return "dryer";
-  return "washer";
-});
-const applianceState = computed(() => firstState(applianceCapability.value));
-const applianceKind = computed<"washer" | "dryer" | "vacuum">(() =>
-  applianceCapability.value === "vacuum"
-    ? "vacuum"
-    : applianceCapability.value === "dryer"
-      ? "dryer"
-      : "washer",
-);
+const vacuumState = computed(() => firstState("vacuum"));
 // Friendly names can repeat the device name ("L50 Ultra  L50 Ultra").
-const applianceTitle = computed(() =>
-  tidyName(
-    String(
-      props.card.props?.title ??
-        applianceState.value?.attributes.friendly_name ??
-        (applianceKind.value === "vacuum" ? "Robot vacuum" : "Appliance"),
-    ),
-  ),
+const vacuumTitle = computed(() =>
+  tidyName(String(props.card.props?.title ?? vacuumState.value?.attributes.friendly_name ?? "Robot vacuum")),
 );
 // Two grid rows or fewer: one line of title, state and buttons.
-const compactAppliance = computed(() => (props.card.layout?.h ?? 3) <= 2);
+const compactVacuum = computed(() => (props.card.layout?.h ?? 3) <= 2);
+
+// --- Appliances (washer, dryer, dishwasher) -------------------------------
+//
+// An appliance is either this card (`appliance`) or a stand-in on another
+// card: the template puts the home's appliances on the agenda/vacuum slot,
+// and while one runs or is finished it takes that slot. In a slot of four
+// rows or more it shares: the appliance takes the top two (three from seven
+// rows) and the regular card keeps the rest.
+
+const applianceSources = computed(() => {
+  const own = props.card.card === "appliance" ? [{ instanceId: props.card.instanceId, bindings: props.card.bindings, props: props.card.props }] : [];
+  return [...own, ...(props.card.standIns ?? []).filter((standIn) => standIn.card === "appliance")].map((source) => {
+    // Dashboards planned before 0.5.0 bound a single `washer`/`dryer` entity.
+    const legacy = source.bindings?.washer ? "washer" : source.bindings?.dryer ? "dryer" : undefined;
+    const bindings = legacy && !source.bindings?.status ? { ...source.bindings, status: source.bindings![legacy] } : source.bindings;
+    const kind = String(source.props?.kind ?? legacy ?? "washer");
+    const name = source.props?.name ?? source.props?.title;
+    return {
+      key: `${props.dashboardId}/${source.instanceId}`,
+      bindings,
+      thresholdW: typeof source.props?.thresholdW === "number" ? source.props.thresholdW : undefined,
+      kind: (["washer", "dryer", "dishwasher"].includes(kind) ? kind : "washer") as ApplianceKind,
+      name: typeof name === "string" ? name : undefined,
+    };
+  });
+});
+const { readings: applianceReadings } = useApplianceReadings(
+  () => applianceSources.value,
+  () => props.states,
+);
+const ownAppliance = computed(() =>
+  props.card.card === "appliance" && applianceReadings.value[0]
+    ? { ...applianceSources.value[0], reading: applianceReadings.value[0] }
+    : undefined,
+);
+const slotRows = computed(() => props.card.layout?.h ?? 3);
+
+/**
+ * Stand-ins shown in this slot, top down, with the rows each takes. One
+ * active appliance: finished laundry first (it is waiting), then errors,
+ * running, paused. A second one gets a one-row line under the first while
+ * the regular card keeps at least two rows (or in a three-row slot it has
+ * to give up anyway); then the running one is drawn large and the finished
+ * one is the line.
+ */
+const standIns = computed(() => {
+  if (props.card.card === "appliance") return [];
+  const active = applianceSources.value
+    .map((source, index) => ({ ...source, reading: applianceReadings.value[index], index }))
+    .filter((item) => item.reading && applianceIsActive(item.reading.state))
+    .sort((a, b) => applianceUrgency(b.reading.state) - applianceUrgency(a.reading.state) || a.index - b.index);
+  if (!active.length) return [];
+
+  const slot = slotRows.value;
+  const first = slot >= 7 ? 3 : slot >= 4 || (slot === 3 && active.length > 1) ? 2 : slot;
+  const lines = active.slice(1).filter((_, index) => {
+    const used = first + index + 1;
+    return slot === 3 ? used <= 3 : slot - used >= 2;
+  });
+  const shown = lines.length
+    ? [...active.slice(0, lines.length + 1)].sort((a, b) => Number(b.reading.state !== "finished") - Number(a.reading.state !== "finished"))
+    : active.slice(0, 1);
+  let row = 1;
+  return shown.map((item, index) => {
+    const rows = index === 0 ? first : 1;
+    const placed = { ...item, rows, gridRow: `${row} / span ${rows}` };
+    row += rows;
+    return placed;
+  });
+});
+const standInRows = computed(() => standIns.value.reduce((sum, item) => sum + item.rows, 0));
+/** The slot is split into rows when the regular card stays or several stand-ins share it. */
+const sharing = computed(() => standIns.value.length > 0 && standInRows.value < slotRows.value);
+const gridded = computed(() => sharing.value || standIns.value.length > 1);
+const sharedStyle = computed(() =>
+  gridded.value ? { "--slot-rows": String(slotRows.value), "--stand-in-rows": String(standInRows.value) } : undefined,
+);
 
 /**
  * Overall state of the bound locks, alarms and garages. Status only: the
@@ -271,9 +333,9 @@ function numberProp(name: string): number | undefined {
 }
 
 // The friendly name is often the title already; never show it twice.
-const applianceDetail = computed(() => {
-  const name = tidyName(String(applianceState.value?.attributes.friendly_name ?? ""));
-  return name && name !== applianceTitle.value ? name : undefined;
+const vacuumDetail = computed(() => {
+  const name = tidyName(String(vacuumState.value?.attributes.friendly_name ?? ""));
+  return name && name !== vacuumTitle.value ? name : undefined;
 });
 
 const hasBinding = (capability: string) => ids(props.card.bindings?.[capability]).length > 0;
@@ -315,7 +377,7 @@ const priceLevel = computed<"low" | "normal" | "high" | undefined>(() => {
   return "normal";
 });
 
-const vacuumRunning = computed(() => applianceState.value?.state === "cleaning");
+const vacuumRunning = computed(() => vacuumState.value?.state === "cleaning");
 
 function toggleLights(): void {
   void run(props.dashboardId, props.card.instanceId, "toggle-lights");
@@ -338,117 +400,137 @@ function returnVacuumHome(): void {
 </script>
 
 <template>
-  <div class="manifest-card" :style="style">
-    <RoomCard
-      v-if="card.card === 'room'"
-      :name="roomName"
-      :temperature="numericState('temperature')"
-      :humidity="numericState('humidity')"
-      :lights-on="lightsOn"
-      :active="lightsOn > 0"
-      :controllable="canControl"
-      :pending="isPending(card.instanceId, 'toggle-lights')"
-      @toggle-lights="toggleLights"
-    />
-
-    <EnergyCard
-      v-else-if="card.card === 'energy'"
-      :title="typeof card.props?.title === 'string' ? card.props.title : undefined"
-      :watts="numericState('power') ?? 0"
-      :summary="energyHistory?.summary"
-      :currency="energyHistory?.currency"
-      :currency-label="energyHistory?.currencyLabel"
-    />
-
-    <EnergyFlowCard
-      v-else-if="card.card === 'energy-flow'"
-      :title="cardProp('title') ? String(cardProp('title')) : undefined"
-      :ev-name="cardProp('evName') ? String(cardProp('evName')) : undefined"
-      :currency="cardProp('currency') ? String(cardProp('currency')) : undefined"
-      :max-power-kw="Number(cardProp('maxPowerKw')) || undefined"
-      :has-solar="hasBinding('solar_power')"
-      :has-grid="hasBinding('grid_power')"
-      :has-battery="hasBinding('battery_power')"
-      :has-ev="hasBinding('ev_power')"
-      :solar-w="watts('solar_power')"
-      :grid-w="watts('grid_power', cardProp('invertGrid'))"
-      :battery-w="watts('battery_power', cardProp('invertBattery'))"
-      :battery-pct="numericState('battery_level')"
-      :ev-w="watts('ev_power')"
-      :home-w="watts('power')"
-      :today-kwh="numericState('energy')"
-      :price="numericState('price')"
-      :price-level="priceLevel"
-    />
-
-    <ClimateCard
-      v-else-if="card.card === 'climate' && climateZones.length"
-      :zones="climateZones"
-      :controllable="canControl"
-      :pending="isPending(card.instanceId, 'set-temperature')"
-      @set-temperature="setTemperature"
-    />
-
+  <div class="manifest-card" :class="{ 'manifest-card-shared': gridded }" :style="[style, sharedStyle]">
     <ApplianceCard
-      v-else-if="card.card === 'appliance' || card.card === 'vacuum'"
-      :kind="applianceKind"
-      :title="applianceTitle"
-      :state="applianceState?.state ?? 'Unavailable'"
-      :detail="applianceDetail"
-      :compact="compactAppliance"
-      :controllable="canControl"
-      :running="vacuumRunning"
-      :pending="isPending(card.instanceId, 'start-pause') || isPending(card.instanceId, 'return-home')"
-      @start-pause="startPauseVacuum"
-      @return-home="returnVacuumHome"
+      v-for="item in standIns"
+      :key="item.key"
+      class="stand-in"
+      :style="gridded ? { gridRow: item.gridRow } : undefined"
+      :kind="item.kind"
+      :name="item.name"
+      :reading="item.reading"
+      :rows="item.rows"
     />
 
-    <SecurityCard
-      v-else-if="card.card === 'security'"
-      :status="compactSecurity ? lockStatus : securityStatus"
-      :compact="compactSecurity"
-    />
+    <template v-if="!standIns.length || sharing">
+      <ApplianceCard
+        v-if="ownAppliance"
+        :kind="ownAppliance.kind"
+        :name="ownAppliance.name"
+        :reading="ownAppliance.reading"
+        :rows="slotRows"
+      />
 
-    <HomeSceneCard
-      v-else-if="card.card === 'home-scene' && atmosphere"
-      :title="typeof card.props?.title === 'string' ? card.props.title : undefined"
-      :day-image="`api/assets/${sceneImage}-day`"
-      :night-image="`api/assets/${sceneImage}-night`"
-      :night="sceneNight"
-      :atmosphere="atmosphere"
-      :atmosphere-mode="atmosphereMode ?? 'live'"
-      :chips="sceneChips"
-      :lights-on="lightsOn > 0"
-    />
+      <RoomCard
+        v-else-if="card.card === 'room'"
+        :name="roomName"
+        :temperature="numericState('temperature')"
+        :humidity="numericState('humidity')"
+        :lights-on="lightsOn"
+        :active="lightsOn > 0"
+        :controllable="canControl"
+        :pending="isPending(card.instanceId, 'toggle-lights')"
+        @toggle-lights="toggleLights"
+      />
 
-    <CameraCard
-      v-else-if="card.card === 'camera'"
-      :title="cameraTitle"
-      :src="cameraId ? `api/camera_proxy/${cameraId}` : undefined"
-      :refresh-seconds="numberProp('refreshSeconds')"
-    />
+      <EnergyCard
+        v-else-if="card.card === 'energy'"
+        :title="typeof card.props?.title === 'string' ? card.props.title : undefined"
+        :watts="numericState('power') ?? 0"
+        :summary="energyHistory?.summary"
+        :currency="energyHistory?.currency"
+        :currency-label="energyHistory?.currencyLabel"
+      />
 
-    <ForecastCard
-      v-else-if="card.card === 'weather-forecast'"
-      :days="forecast?.data.value?.days ?? []"
-      :max-days="numberProp('days')"
-      :loading="forecast?.loading.value"
-    />
+      <EnergyFlowCard
+        v-else-if="card.card === 'energy-flow'"
+        :title="cardProp('title') ? String(cardProp('title')) : undefined"
+        :ev-name="cardProp('evName') ? String(cardProp('evName')) : undefined"
+        :currency="cardProp('currency') ? String(cardProp('currency')) : undefined"
+        :max-power-kw="Number(cardProp('maxPowerKw')) || undefined"
+        :has-solar="hasBinding('solar_power')"
+        :has-grid="hasBinding('grid_power')"
+        :has-battery="hasBinding('battery_power')"
+        :has-ev="hasBinding('ev_power')"
+        :solar-w="watts('solar_power')"
+        :grid-w="watts('grid_power', cardProp('invertGrid'))"
+        :battery-w="watts('battery_power', cardProp('invertBattery'))"
+        :battery-pct="numericState('battery_level')"
+        :ev-w="watts('ev_power')"
+        :home-w="watts('power')"
+        :today-kwh="numericState('energy')"
+        :price="numericState('price')"
+        :price-level="priceLevel"
+      />
 
-    <AgendaCard
-      v-else-if="card.card === 'agenda'"
-      :events="agendaEvents"
-      :has-calendars="ids(card.bindings?.calendar).length > 0"
-      :max-events="numberProp('maxEvents')"
-      :loading="agenda?.loading.value"
-    />
+      <ClimateCard
+        v-else-if="card.card === 'climate' && climateZones.length"
+        :zones="climateZones"
+        :controllable="canControl"
+        :pending="isPending(card.instanceId, 'set-temperature')"
+        @set-temperature="setTemperature"
+      />
 
-    <PresenceCard v-else-if="card.card === 'presence'" :people="people" />
+      <VacuumCard
+        v-else-if="card.card === 'vacuum'"
+        :title="vacuumTitle"
+        :state="vacuumState?.state ?? 'Unavailable'"
+        :detail="vacuumDetail"
+        :compact="compactVacuum"
+        :controllable="canControl"
+        :running="vacuumRunning"
+        :pending="isPending(card.instanceId, 'start-pause') || isPending(card.instanceId, 'return-home')"
+        @start-pause="startPauseVacuum"
+        @return-home="returnVacuumHome"
+      />
 
-    <GlassCard v-else>
-      <span class="eyebrow">CARD</span>
-      <h2>{{ card.card }}</h2>
-      <p class="muted">This card type is valid in the manifest but has no renderer yet.</p>
-    </GlassCard>
+      <SecurityCard
+        v-else-if="card.card === 'security'"
+        :status="compactSecurity ? lockStatus : securityStatus"
+        :compact="compactSecurity"
+      />
+
+      <HomeSceneCard
+        v-else-if="card.card === 'home-scene' && atmosphere"
+        :title="typeof card.props?.title === 'string' ? card.props.title : undefined"
+        :day-image="`api/assets/${sceneImage}-day`"
+        :night-image="`api/assets/${sceneImage}-night`"
+        :night="sceneNight"
+        :atmosphere="atmosphere"
+        :atmosphere-mode="atmosphereMode ?? 'live'"
+        :chips="sceneChips"
+        :lights-on="lightsOn > 0"
+      />
+
+      <CameraCard
+        v-else-if="card.card === 'camera'"
+        :title="cameraTitle"
+        :src="cameraId ? `api/camera_proxy/${cameraId}` : undefined"
+        :refresh-seconds="numberProp('refreshSeconds')"
+      />
+
+      <ForecastCard
+        v-else-if="card.card === 'weather-forecast'"
+        :days="forecast?.data.value?.days ?? []"
+        :max-days="numberProp('days')"
+        :loading="forecast?.loading.value"
+      />
+
+      <AgendaCard
+        v-else-if="card.card === 'agenda'"
+        :events="agendaEvents"
+        :has-calendars="ids(card.bindings?.calendar).length > 0"
+        :max-events="numberProp('maxEvents')"
+        :loading="agenda?.loading.value"
+      />
+
+      <PresenceCard v-else-if="card.card === 'presence'" :people="people" />
+
+      <GlassCard v-else>
+        <span class="eyebrow">CARD</span>
+        <h2>{{ card.card }}</h2>
+        <p class="muted">This card type is valid in the manifest but has no renderer yet.</p>
+      </GlassCard>
+    </template>
   </div>
 </template>

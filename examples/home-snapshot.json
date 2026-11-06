@@ -53,7 +53,10 @@
       "sensor.home_energy_today"
     ],
     "washer": [
-      "sensor.washer_state"
+      "sensor.washing_machine_current_status"
+    ],
+    "dishwasher": [
+      "sensor.dishwasher_operation_state"
     ],
     "vacuum": [
       "vacuum.robot"
@@ -81,5 +84,31 @@
       "person.anna",
       "person.ben"
     ]
-  }
+  },
+  "appliances": [
+    {
+      "id": "washer",
+      "kind": "washer",
+      "name": "Washing machine",
+      "areaId": "utility",
+      "entities": {
+        "status": "sensor.washing_machine_current_status",
+        "remaining": "sensor.washing_machine_remaining_time",
+        "total": "sensor.washing_machine_total_time",
+        "energy": "sensor.washing_machine_energy_today",
+        "switch": "switch.washing_machine_power"
+      }
+    },
+    {
+      "id": "dishwasher",
+      "kind": "dishwasher",
+      "name": "Dishwasher",
+      "areaId": "kitchen",
+      "entities": {
+        "status": "sensor.dishwasher_operation_state",
+        "program": "select.dishwasher_active_program",
+        "door": "binary_sensor.dishwasher_door"
+      }
+    }
+  ]
 }

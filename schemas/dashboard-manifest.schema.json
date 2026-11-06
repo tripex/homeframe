@@ -78,6 +78,32 @@
               "type": ["string", "number", "boolean"]
             }
           },
+          "standIns": {
+            "type": "array",
+            "description": "Status-only cards (appliances) that take this card's slot while they are active (running, finished). They have no layout of their own.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["instanceId", "card"],
+              "properties": {
+                "instanceId": { "type": "string", "minLength": 1 },
+                "card": { "type": "string", "minLength": 1 },
+                "bindings": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "oneOf": [
+                      { "type": "string" },
+                      { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+                    ]
+                  }
+                },
+                "props": {
+                  "type": "object",
+                  "additionalProperties": { "type": ["string", "number", "boolean"] }
+                }
+              }
+            }
+          },
           "layout": {
             "type": "object",
             "additionalProperties": false,

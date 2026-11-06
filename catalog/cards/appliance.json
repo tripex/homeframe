@@ -1,24 +1,42 @@
 {
   "id": "appliance",
-  "version": "0.2.0",
+  "version": "0.5.0",
   "displayName": "Appliance",
-  "description": "Status surface for washers, dryers and similar household appliances.",
-  "aiSummary": "Use when washer or dryer status/progress can be identified confidently.",
+  "description": "Status of a washer, dryer or dishwasher: running with time left and 'done at HH.MM', finished, idle, off or unavailable, plus program and today's energy. Status only. Reads the appliance's own integration (LG ThinQ, SmartThinQ, Home Connect, Miele, SmartThings, Electrolux…) or, with only a smart plug, its power draw.",
+  "aiSummary": "Use for a discovered appliance (HomeSnapshot.appliances): bind its entities by role as they are. Templates add it as a stand-in that takes the agenda/vacuum slot only while it runs or is finished.",
   "sizes": ["sm", "md"],
   "capabilities": [
-    { "kind": "washer" },
-    { "kind": "dryer" }
+    { "kind": "status" },
+    { "kind": "phase" },
+    { "kind": "remaining" },
+    { "kind": "end_time" },
+    { "kind": "total" },
+    { "kind": "progress" },
+    { "kind": "program" },
+    { "kind": "door" },
+    { "kind": "power" },
+    { "kind": "energy" },
+    { "kind": "switch" }
   ],
   "props": {
-    "title": {
+    "kind": {
       "type": "string",
-      "description": "Human-facing appliance name"
+      "description": "washer, dryer or dishwasher: decides the drawing and the wording ('Vasketøjet er færdigt')."
+    },
+    "name": {
+      "type": "string",
+      "description": "Human-facing appliance name, e.g. the device name."
+    },
+    "thresholdW": {
+      "type": "number",
+      "description": "Smart-plug appliances only: power above this many watts means running.",
+      "default": 10
     }
   },
   "actions": [
     {
       "id": "start-stop",
-      "description": "Start or stop an appliance only if the integration exposes an explicit safe service.",
+      "description": "Reserved: start or stop an appliance once an integration exposes an explicit safe service. Not executable; the card is status only.",
       "risk": "control"
     }
   ]

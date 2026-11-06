@@ -59,6 +59,19 @@ export type CardLayout = {
 
 export type EntityBinding = string | string[];
 
+/**
+ * A card that takes another card's place while it has something to report,
+ * e.g. a running or finished washer in the agenda's slot. It has no layout of
+ * its own: the renderer shows the first active stand-in in the host card's
+ * slot (sharing it when the slot is tall) and the host card otherwise.
+ */
+export type DashboardStandIn = {
+  instanceId: string;
+  card: string;
+  bindings?: Record<string, EntityBinding>;
+  props?: Record<string, string | number | boolean>;
+};
+
 export type DashboardCard = {
   instanceId: string;
   card: string;
@@ -67,6 +80,8 @@ export type DashboardCard = {
   bindings?: Record<string, EntityBinding>;
   props?: Record<string, string | number | boolean>;
   layout?: CardLayout;
+  /** Status-only cards that borrow this card's slot while they are active. */
+  standIns?: DashboardStandIn[];
 };
 
 /**

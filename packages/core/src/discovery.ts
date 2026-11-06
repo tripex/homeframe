@@ -1,3 +1,4 @@
+import { discoverAppliances, primaryApplianceEntity } from "./appliances.js";
 import { tidyName } from "./names.js";
 import type {
   AuthUserEntry,
@@ -185,14 +186,9 @@ function classifyCapability(
   if (deviceClass === "motion" || deviceClass === "occupancy") return "motion";
   if (deviceClass === "presence") return "presence";
 
-  // Washers and dryers rarely expose a standard device class, so fall back to
-  // name matching. Restricted to domains that plausibly report appliance
-  // status/progress as a sensor, contact, or plug rather than an operable
-  // switch/cover with its own domain handling above.
-  if (domain === "sensor" || domain === "binary_sensor" || domain === "switch") {
-    if (/washer|washing|vaskemask|laundry/.test(searchableName)) return "washer";
-    if (/dryer|tumble|tørretumbler|torretumbler/.test(searchableName)) return "dryer";
-  }
+  // Washers, dryers and dishwashers are recognised per device afterwards
+  // (see appliances.ts): a single entity name is not enough to tell a
+  // washer's status from a robot vacuum's "mop washing" switch.
 
   return "generic";
 }
@@ -357,6 +353,17 @@ export function discoverHome(snapshot: RegistrySnapshot): SemanticHome {
     unassigned.push({ kind, entityId: state.entity_id, label, domain, score: capabilityScore(kind, stub, state, label) });
   }
 
+  // The entity that stands for each appliance (its status, or a plug's
+  // power) takes the appliance's kind; the rest stay what they are.
+  const appliances = discoverAppliances(snapshot);
+  const primary = new Map(appliances.map((appliance) => [primaryApplianceEntity(appliance), appliance]));
+  for (const capability of [...unassigned, ...[...discoveredAreas.values()].flatMap((area) => area.capabilities)]) {
+    const appliance = primary.get(capability.entityId);
+    if (!appliance) continue;
+    capability.kind = appliance.kind;
+    capability.score = 70 + (capability.deviceClass ? 10 : 0);
+  }
+
   for (const area of discoveredAreas.values()) {
     area.capabilities.sort(
       (left, right) =>
@@ -369,5 +376,6 @@ export function discoverHome(snapshot: RegistrySnapshot): SemanticHome {
       (area) => area.capabilities.length > 0,
     ),
     unassigned,
+    ...(appliances.length ? { appliances } : {}),
   };
 }

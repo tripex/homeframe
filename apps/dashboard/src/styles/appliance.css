@@ -1,0 +1,140 @@
+/*
+ * Appliance card (washer, dryer, dishwasher) and the shared slot it borrows.
+ * The drawing uses the drawn house's palette (tablet.css: .house-*); colour
+ * only appears while the machine runs (water blue) or is done (soft green).
+ */
+
+/* ---- A stand-in sharing a tall slot with the regular card --------------- */
+
+.manifest-card-shared {
+  display: grid;
+  grid-template-rows: repeat(var(--slot-rows), minmax(0, 1fr));
+  row-gap: inherit;
+}
+.manifest-card-shared > :not(.stand-in) { grid-row: calc(var(--stand-in-rows) + 1) / -1; }
+
+/* ---- Card ------------------------------------------------------------------ */
+
+.appliance-status { display: flex; align-items: center; gap: 14px; overflow: hidden; }
+.appliance-status .appliance-art { flex: none; height: min(100%, 64px); width: auto; aspect-ratio: 1; }
+.appliance-status.as-full .appliance-art { height: min(100%, 96px); }
+.appliance-status.as-line .appliance-art { height: min(100%, 30px); }
+
+.appliance-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; }
+.as-line .appliance-text { flex-direction: row; align-items: baseline; gap: 12px; }
+.as-line .appliance-name { flex: 0 100 auto; min-width: 0; }
+.as-line .appliance-headline { flex: 0 1 auto; min-width: 0; }
+.appliance-name { text-transform: uppercase; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.appliance-headline {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.as-full .appliance-headline { font-size: 24px; }
+.as-line .appliance-headline { font-size: 16px; font-weight: 550; color: #c3c9d2; }
+.appliance-time { color: #c3c9d2; font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.as-full .appliance-time { font-size: 14px; }
+.appliance-chips { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.appliance-chips li {
+  font-size: 11.5px;
+  padding: 3px 9px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.055);
+  border: 1px solid var(--border);
+  color: #b8c0cd;
+}
+.appliance-progress { height: 4px; margin-top: 5px; border-radius: 99px; background: rgba(255, 255, 255, 0.07); overflow: hidden; }
+.appliance-progress span { display: block; height: 100%; border-radius: inherit; background: var(--accent); opacity: 0.75; transition: width 0.8s ease; }
+
+.as-state-finished { border-color: rgba(110, 231, 168, 0.22); }
+.as-state-finished .appliance-headline { color: #c9f5dc; }
+.as-state-error .appliance-headline { color: #ffc0ad; }
+.as-state-paused .appliance-progress span { opacity: 0.35; }
+
+/* ---- Drawing --------------------------------------------------------------- */
+
+.appliance-art .art-body { fill: #121822; stroke: rgba(255, 255, 255, 0.1); stroke-width: 1; }
+.appliance-art .art-seam { stroke: rgba(255, 255, 255, 0.07); stroke-width: 1; }
+.appliance-art .art-display { fill: #0d1219; transition: fill 0.8s ease; }
+.appliance-art .art-knob { fill: #1d2531; stroke: rgba(255, 255, 255, 0.08); }
+.appliance-art .art-door-ring { fill: #1a222e; stroke: #2a3443; stroke-width: 2; transition: stroke 0.8s ease; }
+.appliance-art .art-glass { fill: #0b0f15; }
+.appliance-art .art-water { fill: rgba(123, 220, 255, 0.26); opacity: 0; transition: opacity 0.8s ease; }
+.appliance-art .art-laundry { fill: #2f3846; transition: fill 0.8s ease, opacity 0.8s ease; }
+.appliance-art .art-lifter { fill: #2a3443; }
+.appliance-art .art-drum,
+.appliance-art .art-water,
+.appliance-art .art-spray circle { transform-box: view-box; }
+.appliance-art .art-drum { transform-origin: 32px 38px; }
+.appliance-art .art-door { fill: #161d28; stroke: rgba(255, 255, 255, 0.06); }
+.appliance-art .art-handle { fill: #2a3443; }
+.appliance-art .art-spray circle { fill: rgba(123, 220, 255, 0.7); opacity: 0; }
+.appliance-art .art-check {
+  fill: none;
+  stroke: #6ee7a8;
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0;
+  transition: opacity 0.8s ease;
+}
+
+.appliance-art.is-running .art-display,
+.appliance-art.is-paused .art-display { fill: rgba(123, 220, 255, 0.55); }
+.appliance-art.is-running .art-door-ring { stroke: rgba(123, 220, 255, 0.32); }
+.appliance-art.is-running .art-water,
+.appliance-art.is-paused .art-water { opacity: 1; }
+.appliance-art.is-running .art-laundry,
+.appliance-art.is-paused .art-laundry { fill: rgba(170, 190, 210, 0.5); }
+.appliance-art-dryer.is-running .art-laundry,
+.appliance-art-dryer.is-paused .art-laundry { fill: rgba(255, 207, 138, 0.42); }
+.appliance-art.is-finished .art-display { fill: rgba(110, 231, 168, 0.55); }
+.appliance-art.is-finished .art-check { opacity: 0.9; }
+.appliance-art.is-finished .art-laundry { opacity: 0.3; }
+.appliance-art.is-error .art-display { fill: rgba(255, 160, 130, 0.6); }
+.appliance-art.is-off,
+.appliance-art.is-unavailable { opacity: 0.55; }
+
+/* Motion only while running: the drum turns, water sways, a dishwasher sprays. */
+.appliance-art.is-running .art-drum { animation: art-turn 3.2s linear infinite; }
+.appliance-art-dryer.is-running .art-drum { animation-duration: 2.6s; }
+.appliance-art.is-running.phase-spin .art-drum { animation-duration: 0.9s; }
+.appliance-art.is-running .art-water { animation: art-sway 2.8s linear infinite; }
+.appliance-art.is-running .art-spray circle { animation: art-rise 2.4s ease-in infinite; }
+.appliance-art.is-running .art-spray circle:nth-child(2) { animation-delay: 0.5s; }
+.appliance-art.is-running .art-spray circle:nth-child(3) { animation-delay: 1s; }
+.appliance-art.is-running .art-spray circle:nth-child(4) { animation-delay: 1.4s; }
+.appliance-art.is-running .art-spray circle:nth-child(5) { animation-delay: 1.9s; }
+
+@keyframes art-turn { to { transform: rotate(360deg); } }
+@keyframes art-sway { from { transform: translateX(0); } to { transform: translateX(-24px); } }
+@keyframes art-rise {
+  0% { transform: translateY(0); opacity: 0; }
+  30% { opacity: 0.8; }
+  100% { transform: translateY(-16px); opacity: 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .appliance-art * { animation: none !important; }
+  .appliance-art.is-running .art-spray circle { opacity: 0.45; }
+}
+
+/* ---- Desktop: scale with the window like the other cards -------------------- */
+
+.desktop-grid .appliance-status { gap: calc(14 * var(--s)); }
+.desktop-grid .appliance-status .appliance-art { height: min(100%, calc(84 * var(--s))); }
+.desktop-grid .appliance-status.as-full .appliance-art { height: min(100%, calc(96 * var(--s))); }
+.desktop-grid .appliance-status.as-line .appliance-art { height: min(100%, calc(36 * var(--s))); }
+.desktop-grid .appliance-text { gap: calc(4 * var(--s)); }
+.desktop-grid .appliance-headline { font-size: calc(24 * var(--s)); }
+.desktop-grid .as-full .appliance-headline { font-size: calc(25 * var(--s)); }
+.desktop-grid .as-line .appliance-headline { font-size: calc(18 * var(--s)); }
+.desktop-grid .appliance-time { font-size: calc(14 * var(--s)); }
+.desktop-grid .as-full .appliance-time { font-size: calc(16 * var(--s)); }
+.desktop-grid .appliance-chips { gap: calc(7 * var(--s)); margin-top: calc(6 * var(--s)); }
+.desktop-grid .appliance-chips li { font-size: calc(13 * var(--s)); padding: calc(4 * var(--s)) calc(11 * var(--s)); }
+.desktop-grid .appliance-progress { height: calc(5 * var(--s)); margin-top: calc(7 * var(--s)); }

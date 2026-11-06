@@ -219,16 +219,19 @@ function buildHome(now, overrides = {}) {
   }));
   const currentPrice = spotPrice(now.getHours());
 
-  const entity = (entity_id, state, attributes = {}, registry = {}) => ({
-    registry: { entity_id, name: null, area_id: null, device_id: null, ...registry },
-    state: {
-      entity_id,
-      state: String(state),
-      attributes,
-      last_changed: isoNow,
-      last_updated: isoNow,
-    },
-  });
+  const entity = (entity_id, state, attributes = {}, registry = {}, { changedAgoMs = 0 } = {}) => {
+    const changed = changedAgoMs ? new Date(now.getTime() - changedAgoMs).toISOString() : isoNow;
+    return {
+      registry: { entity_id, name: null, area_id: null, device_id: null, ...registry },
+      state: {
+        entity_id,
+        state: String(state),
+        attributes,
+        last_changed: changed,
+        last_updated: changed,
+      },
+    };
+  };
 
   const sun = sunState(now);
   const weather = process.env.FAKE_HA_WEATHER ?? "partlycloudy";
@@ -248,7 +251,16 @@ function buildHome(now, overrides = {}) {
     entity("sensor.home_power", 1460 + Math.round(noise(now.getMinutes()) * 300), { device_class: "power", unit_of_measurement: "W", state_class: "measurement", friendly_name: "Home power" }),
     entity("sensor.home_energy", 18452300, { device_class: "energy", unit_of_measurement: "Wh", state_class: "total_increasing", friendly_name: "Home energy" }),
     entity("sensor.energi_data_service", currentPrice, { unit_of_measurement: "DKK/kWh", friendly_name: "Energi Data Service", current_price: currentPrice, raw_today, raw_tomorrow: [] }),
-    entity("sensor.washing_machine_state", "Rinsing", { friendly_name: "Washing machine" }, { area_id: "utility" }),
+    // A washer half way through its program (LG ThinQ naming) and a
+    // dishwasher that finished 25 minutes ago (Home Connect naming).
+    entity("sensor.washing_machine_current_status", "rinsing", { device_class: "enum", options: ["power_off", "initial", "running", "rinsing", "spinning", "end", "pause", "error"], friendly_name: "Washing machine Current status" }, { device_id: "washer", translation_key: "current_state", has_entity_name: true, original_name: "Current status" }),
+    entity("sensor.washing_machine_remaining_time", new Date(now.getTime() + 38 * 60_000).toISOString(), { device_class: "timestamp", friendly_name: "Washing machine Remaining time" }, { device_id: "washer", translation_key: "remain", has_entity_name: true, original_name: "Remaining time" }),
+    entity("sensor.washing_machine_total_time", 105, { device_class: "duration", unit_of_measurement: "min", friendly_name: "Washing machine Total time" }, { device_id: "washer", translation_key: "total", has_entity_name: true, original_name: "Total time" }),
+    entity("sensor.washing_machine_energy_today", 420, { device_class: "energy", unit_of_measurement: "Wh", state_class: "total", friendly_name: "Washing machine Energy today" }, { device_id: "washer", translation_key: "energy_usage_today", has_entity_name: true, original_name: "Energy today" }),
+    entity("switch.washing_machine_power", "on", { device_class: "switch", friendly_name: "Washing machine Power" }, { device_id: "washer", translation_key: "operation_power", has_entity_name: true, original_name: "Power" }),
+    entity("sensor.dishwasher_operation_state", "finished", { device_class: "enum", options: ["inactive", "ready", "delayedstart", "run", "pause", "actionrequired", "finished", "error", "aborting"], friendly_name: "Dishwasher Operation state" }, { device_id: "dishwasher", translation_key: "operation_state", has_entity_name: true, original_name: "Operation state" }, { changedAgoMs: 25 * 60_000 }),
+    entity("select.dishwasher_active_program", "dishcare_dishwasher_program_eco_50", { options: ["dishcare_dishwasher_program_auto_2", "dishcare_dishwasher_program_eco_50", "dishcare_dishwasher_program_quick_45"], friendly_name: "Dishwasher Active program" }, { device_id: "dishwasher", translation_key: "active_program", has_entity_name: true, original_name: "Active program" }),
+    entity("binary_sensor.dishwasher_door", "off", { device_class: "door", friendly_name: "Dishwasher Door" }, { device_id: "dishwasher", translation_key: "door", has_entity_name: true, original_name: "Door" }),
     entity("vacuum.robot", "docked", { friendly_name: "Robot vacuum" }),
     entity("lock.front_door", "locked", { friendly_name: "Front door" }),
     entity("sun.sun", sun.state, sun.attributes),
@@ -273,7 +285,10 @@ function buildHome(now, overrides = {}) {
       { area_id: "bedroom", name: "Bedroom" },
       { area_id: "utility", name: "Utility room" },
     ],
-    devices: [],
+    devices: [
+      { id: "washer", name: "Washing machine", name_by_user: null, manufacturer: "LGE", model: "F4WV710P2E (DEVICE_WASHER)", area_id: "utility" },
+      { id: "dishwasher", name: "Dishwasher", name_by_user: null, manufacturer: "BSH", model: "SMV6ZCX49E", area_id: "kitchen" },
+    ],
     entities: entities.map((item) => item.registry),
     states: entities.map((item) => item.state),
   };

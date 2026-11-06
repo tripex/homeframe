@@ -5,5 +5,6 @@ import "./styles/manifest.css";
 import "./styles/atmosphere.css";
 import "./styles/tablet.css";
 import "./styles/desktop.css";
+import "./styles/appliance.css";
 
 createApp(App).mount("#app");

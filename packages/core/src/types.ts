@@ -33,6 +33,8 @@ export type EntityRegistryEntry = {
   disabled_by?: string | null;
   entity_category?: string | null;
   has_entity_name?: boolean;
+  /** The integration's stable key for the entity, e.g. LG ThinQ `current_state`. */
+  translation_key?: string | null;
 };
 
 /**
@@ -82,6 +84,7 @@ export type CapabilityKind =
   | "vacuum"
   | "washer"
   | "dryer"
+  | "dishwasher"
   | "media"
   | "sun"
   | "weather"
@@ -119,6 +122,8 @@ export type DiscoveredArea = {
 export type SemanticHome = {
   areas: DiscoveredArea[];
   unassigned: Capability[];
+  /** Washers, dryers and dishwashers, each with its entities by role. */
+  appliances?: import("./appliances.js").Appliance[];
 };
 
 export type ServiceCall = {

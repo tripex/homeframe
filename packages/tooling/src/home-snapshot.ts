@@ -26,6 +26,7 @@ const HOME_LEVEL_KINDS: readonly CapabilityKind[] = [
   "ev_power",
   "washer",
   "dryer",
+  "dishwasher",
   "vacuum",
   "lock",
   "alarm",
@@ -94,6 +95,21 @@ export function homeSnapshotFromSemanticHome(home: SemanticHome, name?: string):
     name: name ?? "Home",
     areas,
     capabilities: globalCapabilities,
+    // Only present when there are appliances, so a home without any plans
+    // exactly as before.
+    ...(home.appliances?.length
+      ? {
+          appliances: home.appliances.map((appliance) => ({
+            id: appliance.id,
+            kind: appliance.kind,
+            name: appliance.name,
+            ...(appliance.areaId ? { areaId: appliance.areaId } : {}),
+            entities: Object.fromEntries(
+              Object.entries(appliance.entities).filter((entry): entry is [string, string] => Boolean(entry[1])),
+            ),
+          })),
+        }
+      : {}),
   };
 }
 

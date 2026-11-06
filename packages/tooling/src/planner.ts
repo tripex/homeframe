@@ -16,6 +16,19 @@ export type HomeAreaSnapshot = {
 };
 
 /**
+ * A washer, dryer or dishwasher: its kind, a name and one entity per role
+ * (`status`, `remaining`, `end_time`, `program`, `power`, `energy`…), which
+ * become the appliance card's bindings as they are.
+ */
+export type ApplianceSnapshot = {
+  id: string;
+  kind: string;
+  name: string;
+  areaId?: string;
+  entities: Record<string, string>;
+};
+
+/**
  * Neutral input format for dashboard planning.
  * An agent can build this from Home Assistant MCP without Homeframe knowing
  * which Home Assistant MCP implementation the user chose.
@@ -24,6 +37,8 @@ export type HomeSnapshot = {
   name?: string;
   areas: HomeAreaSnapshot[];
   capabilities?: CapabilityMap;
+  /** Washers, dryers and dishwashers with their entities grouped per device. */
+  appliances?: ApplianceSnapshot[];
 };
 
 export type PlanRequest = {
@@ -221,20 +236,18 @@ function globalCards(home: HomeSnapshot): DashboardCard[] {
     });
   }
 
-  for (const [kind, title] of [
-    ["washer", "Washing machine"],
-    ["dryer", "Dryer"],
-  ] as const) {
-    const binding = first(global, kind);
-    if (binding) {
-      cards.push({
-        instanceId: `${kind}-overview`,
-        card: "appliance",
-        size: "md",
-        bindings: { [kind]: binding },
-        props: { title },
-      });
-    }
+  const applianceIds = new Set<string>();
+  for (const appliance of home.appliances ?? []) {
+    let instanceId = `appliance-${slug(appliance.name)}`;
+    for (let n = 2; applianceIds.has(instanceId); n += 1) instanceId = `appliance-${slug(appliance.name)}-${n}`;
+    applianceIds.add(instanceId);
+    cards.push({
+      instanceId,
+      card: "appliance",
+      size: "md",
+      bindings: { ...appliance.entities },
+      props: { kind: appliance.kind, name: appliance.name },
+    });
   }
 
   const vacuum = first(global, "vacuum");

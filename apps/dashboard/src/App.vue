@@ -3,13 +3,14 @@ import { tidyName } from "@homeframe/core";
 import { House, Settings2, Sparkles, Wifi, WifiOff } from "lucide-vue-next";
 import { computed, onMounted, onUnmounted, ref, watchEffect } from "vue";
 import ApplianceCard from "./components/cards/ApplianceCard.vue";
+import VacuumCard from "./components/cards/VacuumCard.vue";
 import AgendaCard from "./components/cards/AgendaCard.vue";
 import ClimateCard from "./components/cards/ClimateCard.vue";
 import EnergyCard from "./components/cards/EnergyCard.vue";
 import ForecastCard from "./components/cards/ForecastCard.vue";
 import PresenceCard from "./components/cards/PresenceCard.vue";
 import EnergyFlowCard from "./components/cards/EnergyFlowCard.vue";
-import { demoEnergyAt } from "./demo/demoHome";
+import { demoApplianceReadings, demoEnergyAt } from "./demo/demoHome";
 import RoomCard from "./components/cards/RoomCard.vue";
 import SecurityCard from "./components/cards/SecurityCard.vue";
 import AtmosphereLayer from "./components/atmosphere/AtmosphereLayer.vue";
@@ -111,6 +112,7 @@ const now = ref(new Date());
 // The reference view shows a full energy day so the card can be judged
 // without Home Assistant; manifests always use real runtime history.
 const demoEnergy = demoEnergyHistory();
+const demoAppliances = demoApplianceReadings(Date.now());
 const sampleForecast = demoForecast();
 const sampleAgenda = demoAgenda();
 // The energy-flow reference animates a simulated day so the flows move.
@@ -335,8 +337,9 @@ onUnmounted(() => {
           has-ev
         />
         <ClimateCard v-if="climateZones.length" :zones="climateZones" />
-        <ApplianceCard kind="washer" title="Washing machine" state="38 min remaining" detail="Reference surface" :progress="64" />
-        <ApplianceCard kind="vacuum" title="Robot vacuum" state="Docked" detail="Reference surface" />
+        <ApplianceCard kind="washer" name="Washing machine" :reading="demoAppliances.washer" />
+        <ApplianceCard kind="dishwasher" name="Dishwasher" :reading="demoAppliances.dishwasher" />
+        <VacuumCard title="Robot vacuum" state="docked" detail="Reference surface" />
         <SecurityCard />
         <ForecastCard :days="sampleForecast" />
         <AgendaCard :events="sampleAgenda" has-calendars />

@@ -1,3 +1,5 @@
+import type { ApplianceReading } from "@homeframe/core";
+
 export const demoRooms = [
   {
     name: "Living room",
@@ -55,5 +57,27 @@ export function demoEnergyAt(timeMs: number) {
     todayKwh: 9.8,
     price: evW ? 1.12 : 0.74,
     priceLevel: (evW ? "normal" : "low") as "normal" | "low",
+  };
+}
+
+/** A washer half way through rinsing and a dishwasher that finished a while ago. */
+export function demoApplianceReadings(now: number): { washer: ApplianceReading; dishwasher: ApplianceReading } {
+  return {
+    washer: {
+      state: "running",
+      phase: "rinse",
+      remainingMinutes: 38,
+      endsAt: new Date(now + 38 * 60_000),
+      progress: 64,
+      program: "Cotton 40°",
+      energyTodayKwh: 0.6,
+      memory: {},
+    },
+    dishwasher: {
+      state: "finished",
+      endsAt: new Date(now - 25 * 60_000),
+      program: "Eco 50°",
+      memory: {},
+    },
   };
 }

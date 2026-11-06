@@ -142,6 +142,7 @@ Normal dashboard work should use MCP/CLI operations. Editing Vue/TypeScript is a
 - runtime HTTP API for screens, with opt-in execution of `control` card actions
 - exact dashboard selection by URL or automatic profile selection
 - room, climate, energy, appliance, vacuum and security card contracts
+- appliance card for washers, dryers and dishwashers (see below)
 - energy card with today's hourly consumption from Home Assistant statistics and real costs: hour-by-hour with an electricity price sensor (Energi Data Service, Nord Pool), or a flat tariff
 - conservative security-state rendering
 - demo/reference mode without Home Assistant
@@ -315,9 +316,17 @@ homeframe prop set my-home-tablet-10 energy-overview tariff 2.35      # or: one 
 
 Costs are only shown when they can actually be computed: a dynamic price covers today, a flat tariff covers every period.
 
+## Washers, dryers and dishwashers
+
+Discovery groups each appliance's entities per device into roles (`status`, `phase`, `remaining`, `end_time`, `total`, `progress`, `program`, `door`, `power`, `energy`, `switch`) and lists them in `HomeSnapshot.appliances`. It reads the naming of LG ThinQ (official and SmartThinQ), Home Connect (Bosch/Siemens), Miele, SmartThings (Samsung), Electrolux and generic status sensors, in English and Danish (`vaskemaskine`, `tørretumbler`, `opvaskemaskine`). Without an integration a smart plug is enough: a plug (or its power sensor) named after the appliance runs while it draws more than 10 W (`thresholdW`), and reads "finished" once it has been quiet for five minutes, for up to two hours.
+
+The `appliance` card shows the state in plain words ("38 min tilbage", "Færdig kl. 14.35", "Vasketøjet er færdigt"), the program and today's energy, with a small drawing whose drum turns only while the machine runs (still under reduced motion). It is status only. The home templates do not reserve space for it: each appliance rides on the agenda/vacuum slot as a *stand-in* (`standIns` on the card) and takes that slot only while it runs or is finished, sharing it when the slot is tall. A home without appliances gets exactly the layout it had.
+
+The state rules (`applianceStatus` in `packages/core/src/appliances.ts`) took ideas — the plug threshold, finished/off word lists, phase words — from [skyrotter/ha-appliance-electromenager-cards](https://github.com/skyrotter/ha-appliance-electromenager-cards) (MIT). Thank you.
+
 ### Try it without a real home
 
-`scripts/fake-home-assistant.mjs` is a scripted Home Assistant (sun, weather, a Danish price sensor, energy statistics) for demos and tests:
+`scripts/fake-home-assistant.mjs` is a scripted Home Assistant (sun, weather, a Danish price sensor, energy statistics, a running washer and a finished dishwasher) for demos and tests:
 
 ```bash
 node scripts/fake-home-assistant.mjs &

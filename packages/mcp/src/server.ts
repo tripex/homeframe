@@ -50,6 +50,17 @@ const homeSnapshot = z.object({
     }),
   ),
   capabilities: capabilityMap.optional(),
+  appliances: z
+    .array(
+      z.object({
+        id: z.string().min(1),
+        kind: z.enum(["washer", "dryer", "dishwasher"]),
+        name: z.string().min(1),
+        areaId: z.string().optional(),
+        entities: z.record(z.string(), z.string()),
+      }),
+    )
+    .optional(),
 });
 const entityBinding = z.union([z.string().min(1), z.array(z.string().min(1)).min(1)]);
 const layout = z.object({
@@ -66,6 +77,16 @@ const dashboardCard = z.object({
   bindings: z.record(z.string(), entityBinding).optional(),
   props: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional(),
   layout: layout.optional(),
+  standIns: z
+    .array(
+      z.object({
+        instanceId: z.string().min(1),
+        card: z.string().min(1),
+        bindings: z.record(z.string(), entityBinding).optional(),
+        props: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional(),
+      }),
+    )
+    .optional(),
 });
 
 serveStdio(() => {

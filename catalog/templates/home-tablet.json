@@ -78,6 +78,12 @@
           "instanceId": "agenda",
           "card": "agenda",
           "h": 2,
+          "standIns": {
+            "source": "appliances",
+            "card": "appliance",
+            "instanceId": "appliance",
+            "max": 3
+          },
           "priority": 2,
           "grow": 5,
           "requires": [

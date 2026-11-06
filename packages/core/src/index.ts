@@ -1,5 +1,6 @@
 export * from "./types.js";
 export * from "./discovery.js";
+export * from "./appliances.js";
 export * from "./names.js";
 export * from "./atmosphere.js";
 export * from "./energy.js";
